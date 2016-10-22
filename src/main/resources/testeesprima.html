@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<script type="text/javascript" src="esprima.js"></script>
+<script type="text/javascript">
+	var append_xmeta = [ [ 'X', 'comp', 'newHidden' ],
+			[ 'X', 'comp', 'newTexto' ], [ 'X', 'comp', 'newAcao' ],
+			[ 'X', 'comp', 'newPaginas' ], [ 'X', 'comp', 'newDatahora' ],
+			[ 'X', 'comp', 'newInt' ], [ 'X', 'comp', 'newBoolean' ],
+			[ 'X', 'comp', 'newFloat' ], [ 'X', 'comp', 'newAcordeon' ],
+			[ 'X', 'comp', 'newCombo' ], [ 'X', 'comp', 'newArquivo' ],
+			[ 'X', 'comp', 'newListaDupla' ], [ 'X', 'comp', 'newTabela' ],
+			[ 'X', 'comp', 'newPercentual' ], [ 'X', 'comp', 'newIfloat' ],
+			[ 'X', 'comp', 'newRadio' ], [ 'X', 'comp', 'newData' ],
+			[ 'X', 'comp', 'newPopupmenu' ], [ 'X', 'comp', 'newSenha' ],
+			[ 'X', 'comp', 'newCancelar' ], [ 'X', 'comp', 'newRotulo' ],
+			[ 'X', 'comp', 'newPagina' ], [ 'X', 'comp', 'newJanela' ],
+			[ 'X', 'comp', 'newTabs' ], [ 'X', 'comp', 'newNl' ], ];
+</script>
+<script type="text/javascript" src="esprimaiterator.js"></script>
+<script type="text/javascript">
+
+	function parse() {
+		var parsed = esprima.parse(document.getElementById("tx").value);
+		document.getElementById("tx").value = JSON.stringify(parsed);
+		var newScript = iterate(parsed);
+		document.getElementById('log').innerHTML = newScript;
+	}
+</script>
+</head>
+<body>
+	<textarea rows="10" cols="80" id="tx"></textarea>
+	<button onclick="parse()">Parse</button>
+	<div id="log"></div>
+</body>
+</html>

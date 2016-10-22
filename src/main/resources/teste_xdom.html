@@ -1,0 +1,440 @@
+<html>
+
+<body>
+	<div>
+		<span class="asdf qwer"></span> <span class="asdf x"></span>
+		<div id=ddd>
+			1234 <input xb="a" class="qwer">
+			<div>
+				<div>
+					<input xb="aa" class="qwer">
+					<div class="abc">asdf</div>
+				</div>
+				<div _x_root_ctx="a" class="ctxa">
+					<div id=eee>
+						<input xb="aba" class="qwer">
+						<div class="abca">asdf</div>
+					</div>
+					<div _x_root_ctx="b" class="ctxb">
+						<div id=vvv>
+							<input xb="aa" class="qwer">
+							<div class="abcb">asdf</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script>
+	var CTX = null;
+	var root;
+	function _rootElement(){
+		if(!root){
+			var elements = document.getElementsByClassName(CTX);
+			if(!elements || elements.length == 0){
+				root = document.body;
+			}else{
+				root = elements[0];
+			}
+		}
+		//if not found, is the main context
+		return root;
+	}
+
+	function checkParent(parent){
+		var ctxAttr = parent ? parent.getAttribute("_x_root_ctx") : null;
+		if(!parent || (ctxAttr && ctxAttr != CTX)){
+			throw new Error('Invalid context for element');
+		}
+		if(parent.parentElement != _rootElement()){
+			checkParent(parent.parentElement);
+		}
+	}
+	
+	function _find_children(el, firstLevelOnly, array, fn){
+		if(el){
+			for(var i = 0; i < el.children.length; i++){
+				var item = el.children[i];
+				if(!item.getAttribute("_x_root_ctx")){
+					if(fn(item)){
+						array.push(item);
+					}
+					if(!firstLevelOnly){
+						_find_children(item, firstLevelOnly, array, fn);
+					}
+				}
+			}	
+		}
+	}
+
+	function _find_first_children(element, firstLevelOnly, fn){
+		function aux(el){
+			if(el){
+				for(var i = 0; i < el.children.length; i++){
+					var item = el.children[i];
+					if(!item.getAttribute("_x_root_ctx")){
+						if(fn(item)){
+							return item;
+						}else if(!firstLevelOnly){
+							result = _find_first_children(item, firstLevelOnly, fn);
+							if(result){
+								return result;
+							}
+						}
+					}
+				}	
+			}
+		}
+		return aux(element, fn);
+	}
+
+	function _find(parent, stopWhenFound, firstLevelOnly, testFn){
+		var result = [];
+		if(stopWhenFound){
+			var obj = _find_first_children(parent, firstLevelOnly, testFn);
+			if(obj){
+				result.push(obj);
+			}
+		}else{
+			var result = [];
+			_find_children(parent, firstLevelOnly, result, testFn);		
+		}
+		return result;
+	}
+
+	//find all by tag name. Can pass a list of args
+	function getElementsByTagNames(){
+		var result = [];
+		var args = arguments;
+		_find_children(_rootElement(), false, result, function(item){
+			for(var i in args){
+				if(args[i].toUpperCase() == item.nodeName){
+					return true;
+				}
+			}
+		});
+		return result;
+	}
+
+	function eachInput(each){
+		var array = getElementsByTagNames('input', 'button', 'select', 'textarea');
+		for(var i in array){
+			each(array[i]);
+		};
+		xutil.each(getElementsByAttribute('onclick', null), function(el){
+			if(array.indexOf(el) == -1){
+				each(el);
+			}
+		});
+	}
+
+	function getInputs(){
+		var array = getElementsByTagNames('input', 'button', 'select', 'textarea');
+		xutil.each(getElementsByAttribute('onclick', null), function(el){
+			if(array.indexOf(el) == -1){
+				array.push(el);
+			}
+		});
+		return array;
+	}
+
+	//parse a element attributes into a map
+	function parseAttributes(element){
+		var result = {};
+		xutil.each(element.attributes, function(attr){
+			if(typeof(attr.nodeValue) == 'string'){
+				result[attr.nodeName] = attr.nodeValue;
+			}
+		});
+		return result;
+	}
+
+	//parse a element into a map
+	function parseElement(comp){
+		var attr = parseAttributes(comp);
+		var result = {innerHTML: comp.innerHTML};
+		for(var k in attr){
+			result[k] = attr[k];
+		}
+		return result;
+	}
+
+	//element creation utility
+	function createElement(name, attr, parent){
+		var el = document.createElement(name);
+		for(var k in attr){
+			el.setAttribute(k, attr[k]);
+		}
+		if(parent){
+			parent.appendChild(el)
+		}
+		return el;
+	}
+
+	//find child node by tag name. Can pass a list of args
+	function getChildNodesByTagName(parent, name, deepSearch, attribute, stopWhenFound){
+		checkParent(parent);
+		return _find(parent, stopWhenFound, !deepSearch, function(node){
+			if(node.nodeName == name.toUpperCase()){
+				if(!attribute || (node.getAttribute && node.getAttribute(attribute.name) == attribute.value)){
+					return true; 
+				}
+			}
+		});
+		
+	}
+	//find nodes by classname
+	function getChildNodesByClassName(parent, name, deepSearch, stopWhenFound){
+		checkParent(parent);
+		return _find(parent, stopWhenFound, !deepSearch, function(node){
+			var classes = node.getAttribute("class");
+			if(classes){
+				classes = classes.split(" ");
+				if(classes.indexOf(name) >= 0 && !node.getAttribute("_x_root_ctx")){
+					if(!attribute || (node.getAttribute && node.getAttribute(attribute.name) == attribute.value)){
+						return true;
+					}
+				}					
+			}
+		});
+	}
+
+	//find child by name
+	function getChildElementsByName(parent, name, deepSearch){
+		checkParent(parent);
+		return _find(parent, false, !deepSearch, function(item){
+			if(name.toUpperCase() == item.nodeName){
+				result.push(item);						
+			}
+			if(deepSearch){
+				children(item);						
+			}
+		});
+	}
+
+	//finds child elements by attribute value. Can be a like search of attribute name
+	function _findChildElementsByAttribute(attrName, value, parent, like, result){
+		var array = _find(parent, false, false, function(node){
+			if(node.nodeType == 1){
+				var attrValue = node.getAttribute(attrName);	
+				if(attrValue){
+					if(result.indexOf(node) < 0 && (value == null || attrValue == value || (like && attrValue.indexOf(value) == 0))){
+						return true;
+					}
+				}
+			}
+		});
+		for(var i = 0; i < array.length; i++){
+			result.push(array[i]);
+		}
+	}
+
+	//
+	function getElementsByAttribute(attrName, value, like){
+		var result = [];
+		_findChildElementsByAttribute(attrName, value, _rootElement(), like, result);
+		return result;
+	}
+
+	function getChildElementsByAttribute(el, attrName, value, like){
+		checkParent(el);
+		var result = [];
+		_findChildElementsByAttribute(attrName, value, el, like, result);
+		return result;
+	}
+
+	function _ref(xrefInputId, attrId, isGroup){
+		var elements = getElementsByAttribute("_xrefobj", xrefInputId);
+		if(elements && elements.length == 1){
+			return isGroup ? elements[0]._refgroup[attrId] : elements[0][attrId];
+		}else{
+			var errorMsg = "Error xref: " + xrefInputId + " and attribute " + attrId + " not found.";
+			xlog.error(errorMsg);
+			throw new Error(errorMsg);
+		}
+	}
+
+	//update dynamic attributes
+	function updateElementsAttributeValue(el, except){
+		el = el || document.body;
+		var nodeList = el.childNodes;
+		var outnodes = [];
+		if(nodeList){
+			xutil.each(nodeList, function(node){
+				if(node == except){
+					return;
+				}
+				try{
+					if(node.nodeType == 1){
+						var attrs = node.attributes;
+						var outres = [];
+						for(var i = 0; i < attrs.length; i++){
+							//each attr in element
+							if(attrs[i].name.indexOf("_dynattr_") == 0){
+								continue;
+							}
+							var scripts = null;
+							if(attrs[i].name == 'xchecked'){
+								//xchecked is a x attribute
+								node.checked = X.eval(attrs[i].value) ? true : false;
+							}else if(attrs[i].name == 'xdisabled'){
+								//xdisabled is a x attribute
+								node.disabled = X.eval(attrs[i].value) ? true : false;
+							}else if(attrs[i].name.indexOf("_outxdynattr_") == 0){
+								//scripts outside attribute 
+								scripts = attrs[i].value.substring(2, attrs[i].value.length -2);
+								var fn = 'function __temp_update_dynval(){return ' + scripts + '};__temp_update_dynval()';
+								try{
+									outres.push(X.eval(fn));
+								}catch(e){
+									xlog.error("Error on update outdynval", e);
+								}
+							}else{
+								//normal attributes
+								var dynval = null;
+								var dynname = "_dynattr_" + attrs[i].name;
+								//check if attribute has scripts
+								dynval = node.getAttribute(dynname);
+								if(!dynval){
+									dynval = attrs[i].value;
+									if(dynval.indexOf("((xattrobject: ") < 0){
+										//attribute doesnt have dynamic scripts
+										continue;
+									}
+									node.setAttribute(dynname, dynval);
+								}
+								//regex to extract scripts
+								var regex = /\(\(xattrobject: (.*?) :xattrobject\)\)/g;
+								var fn = 'function __temp_update_dynval(){var result=[];';
+								var z = 0;
+								scripts = [];
+								//gen script
+								while (matches = regex.exec(dynval)) {
+									scripts.push(matches[0]);
+									fn += 'result[' + z++ + '] = ' + matches[1].replace(/!#!/g, '"') + ';'
+								}
+								fn += 'return result;};__temp_update_dynval()';
+								try{
+									//execute generated script
+									var result = X.eval(fn);
+									for(var z = 0; z < scripts.length; z++){
+										//replace result in attribute
+										var typeofVal = typeof(result[z]);
+										if(typeofVal == 'object' || typeofVal == 'function'){
+											var xref = node.getAttribute("_xrefobj");
+											if(!xref){
+												xref = xutil.generateId();
+												node.setAttribute("_xrefobj", xref);
+											}
+											var attr = "_xref" + xutil.generateId();
+											node[attr] = result[z];
+											dynval = dynval.replace(scripts[z], "X._ref('" + xref + "', '" + attr + "')");
+										}else{
+											dynval = dynval.replace(scripts[z], result[z]);
+										}
+									}
+									node.setAttribute(attrs[i].name, dynval);
+								}catch(e){
+									xlog.error("Error on update dynval", e);
+								}
+							}
+						}
+						if(outres.length > 0){
+							//add out fn of nodes
+							outnodes.push([outres, node]);
+						}
+						//update inner element's attributes
+						updateElementsAttributeValue(node, except);
+					} 
+				}catch(e){
+					xlog.error("Error updating attribute value.", e);
+				}
+			});
+			//update all outattributes found
+			if(outnodes.length > 0){
+				for(var i = 0; i < outnodes.length; i++){
+					var n = outnodes[i][1];
+					var outattrs = outnodes[i][0];
+					var notPresent = n.getAttribute("_outxnp_");
+					notPresent = notPresent && notPresent.length > 0 ? notPresent.split(" ") : []; 
+					var newel = document.createElement(n.nodeName);
+					for(var i = 0; i < n.attributes.length; i++){
+						if(notPresent.indexOf(n.attributes[i].name) < 0){
+							newel.setAttribute(n.attributes[i].name, n.attributes[i].value);						
+						}
+					}
+					var newNotPresent = [];
+					for(var i = 0; i < outattrs.length; i++){
+						if(outattrs[i]){
+							var attr = outattrs[i].split("=");
+							newNotPresent.push(attr[0]);
+							if(attr.length > 1){
+								newel.setAttribute(attr[0], attr[1].substring(1, attr[1].length-1));
+							}else{
+								newel.setAttribute(attr[0], true);
+							}
+						}
+					}
+					if(!notPresent){
+						notPresent = newNotPresent;
+					}
+					newel.setAttribute('_outxnp_', notPresent.join(" "));
+					var child = n.childNodes;
+					var len = child.length;
+					n.parentNode.insertBefore(newel, n);
+					for(var j = 0; j < len; j++){
+						newel.appendChild(child[0]);
+					}
+					n.parentNode.removeChild(n);
+				}
+			}
+		}
+	}
+
+	function positionOffset(element) {
+	    var top = 0, left = 0;
+	    do {
+	        top += element.offsetTop  || 0;
+	        left += element.offsetLeft || 0;
+	        element = element.offsetParent;
+	    } while(element);
+
+	    return {
+	        top: top,
+	        left: left
+	    };
+	};
+
+	function removeClass(element, className){
+		var classes = element.getAttribute("class");
+		if(classes){
+			classes = classes.split(" ");
+			var index = classes.indexOf(className);
+			if(index > 0){
+				classes.splice(index, 1);
+			}
+			element.setAttribute("class", classes.join(" "));
+		}
+	}
+
+	function addClass(element, className){
+		var classes = element.getAttribute("class");
+		element.setAttribute("class", (classes ? " " : "") + className);
+	}
+
+	function findAttributeInParent(el, attName){
+		if(el == document){
+			return null;
+		}
+		if(el && el.getAttribute(attName)){
+			return el.getAttribute(attName);
+		}else if(el.parentNode){
+			return findAttributeInParent(el.parentNode, attName);
+		}else{
+			return null;
+		}
+	}
+
+	</script>
+</body>
+</html>

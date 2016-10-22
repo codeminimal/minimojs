@@ -1,0 +1,43 @@
+<%@page import="java.util.List"%>
+<%@ page language="java" contentType="text/html; charset=US-ASCII"
+	pageEncoding="US-ASCII"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+<!DOCTYPE html>
+<html lang="">
+<head>
+<meta charset="utf-8">
+<title>XLoja</title>
+<meta name="description" content="" />
+<meta name="keywords" content="" />
+<meta name="robots" content="" />
+<meta name="viewport"
+	content="width=device-width, minimum-scale=1.0, maximum-scale=1.0">
+<link rel="stylesheet" href="/lib/css/style.css" media="all" />
+<link rel="stylesheet" href="/lib/css/xloja.css" media="all" />
+<link rel="stylesheet" href="/lib/css/jquery-ui.css" />
+<link rel="stylesheet" href="/lib/css/ui.css" media="all" />
+<!--[if IE]><link rel="stylesheet" href="/lib/css/ie.css" media="all" /><![endif]-->
+<!--[if IE 9]><link rel="stylesheet" href="/lib/css/ie9.css" media="all" /><![endif]-->
+<!--[if lt IE 9]><link rel="stylesheet" href="/lib/css/lt-ie-9.css" media="all" /><![endif]-->
+</head>
+<body onload="if(window.init) window.init();">
+	<script>%jquery%</script>
+	<jsp:include page="${pagina}"></jsp:include>
+	
+	<script>%xscript%</script>
+	
+	<c:if test="${not empty sourceJs}">
+		<script src="${sourceJs}"></script>
+	</c:if>
+	<script>
+		$(document).ready(function(){setTimeout(function(){<%
+		List<String> list = (List<String>)request.getAttribute("_endScript");
+		if(list != null){
+			for(String script : list){%>
+				<%=script%>
+			<%}
+		}
+		%>}, 1000)});
+	</script>
+</body>
+</html>
