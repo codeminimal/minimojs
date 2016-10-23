@@ -325,7 +325,7 @@ public enum XResourceManager {
             resInfo = getResourceInfo(jsPath);
             //load html spa window
             loadPageAndCache(resInfo);
-            addPath(validResources, path + (info.getTemplateName() != null ? ".m" : "") + ".js", null);
+            addPath(validResources, path + (info.getTemplateName() != null ? ".m" : ".p") + ".js", null);
         } catch (XHTMLParsingException e) {
             logger.warn("Path " + path + " has an invalid htmx file. ", e);
         } catch (Exception e) {
