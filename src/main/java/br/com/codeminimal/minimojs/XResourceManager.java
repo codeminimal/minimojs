@@ -46,11 +46,15 @@ public enum XResourceManager {
 
     private Set<String> importableScripts;
 
-    private String basePath;
+    private String basePagesPath;
+
+    private String baseResPath;
 
     private String appCacheFile;
 
     private Map<String, XHTMLDocument> templateMap;
+
+    private Set<String> allResources;
 
     public void init(ServletContext ctx, Properties properties) throws IOException, XHTMLParsingException {
         this.ctx = ctx;
@@ -62,7 +66,8 @@ public enum XResourceManager {
         }
         this.ctxPath = this.ctx.getContextPath();
         defaultTemplateName = properties.getProperty("default.page.template");
-        basePath = ctx.getRealPath("/pages");
+        basePagesPath = ctx.getRealPath("/pages");
+        baseResPath = ctx.getRealPath("/res");
         reload();
     }
 
@@ -77,7 +82,39 @@ public enum XResourceManager {
         reloadGlobalImported();
         generateAppCacheFile();
         startWatchService();
+        allResources = new HashSet<String>();
+        collectAllResources();
     }
+
+    private void collectAllResources() {
+        File resDir = new File(baseResPath);
+        List<File> list = getAllFiles(resDir);
+        for (File file : list) {
+            String path = file.getAbsolutePath().substring(resDir.getAbsolutePath().length());
+            allResources.add(path);
+            allResources.add("/res" + path);
+        }
+    }
+
+    public boolean isStaticResource(String path) {
+        return allResources.contains(path);
+    }
+
+    private List<File> getAllFiles(File dir) {
+        List<File> result = new ArrayList<File>();
+        File[] fileArray = dir.listFiles();
+        if (fileArray != null) {
+            for (File file : fileArray) {
+                if (file.isDirectory()) {
+                    result.addAll(getAllFiles(file));
+                } else {
+                    result.add(file);
+                }
+            }
+        }
+        return result;
+    }
+
 
     //watch changes in pages folder
     private void startWatchService() throws IOException {
@@ -128,7 +165,7 @@ public enum XResourceManager {
                                         reloadHtmxFiles(htmxFile);
                                     } else if (fileNameString.endsWith(".js")) {
                                         reloadJs(file);
-                                        reloadGlobalJs(file.getAbsolutePath().substring(basePath.length()));
+                                        reloadGlobalJs(file.getAbsolutePath().substring(basePagesPath.length()));
                                     }
                                     //regenerate app cache
                                     generateAppCacheFile();
@@ -157,9 +194,9 @@ public enum XResourceManager {
     }
 
     private List<String> getDirs() {
-        File dir = new File(this.basePath);
+        File dir = new File(this.basePagesPath);
         List<String> result = getSubDirList(dir);
-        result.add(this.basePath);
+        result.add(this.basePagesPath);
         return result;
     }
 
@@ -234,7 +271,7 @@ public enum XResourceManager {
     }
 
     private void reloadGlobalJs(String resource) throws IOException {
-        File jsFile = new File(basePath + "/pages" + resource);
+        File jsFile = new File(basePagesPath + "/pages" + resource);
 
         addPath(validResources, resource, null);
 
@@ -255,7 +292,7 @@ public enum XResourceManager {
     private void reloadJs(File jsFile) throws IOException {
         logger.info("Loading js " + jsFile.getPath());
 
-        String path = jsFile.getAbsolutePath().substring(basePath.length());
+        String path = jsFile.getAbsolutePath().substring(basePagesPath.length());
 
         if (validResources.containsKey(path.substring(0, path.lastIndexOf(".js"))) || path.equals("/lifecycle.js")) {
             //it has a htmx pair
@@ -300,7 +337,7 @@ public enum XResourceManager {
         ImportableResourceInfo info = new ImportableResourceInfo();
         int htmxStrLength = ".htmx".length();
 
-        String path = htmxFile.getAbsolutePath().substring(basePath.length(), htmxFile.getAbsolutePath().length() - htmxStrLength);
+        String path = htmxFile.getAbsolutePath().substring(basePagesPath.length(), htmxFile.getAbsolutePath().length() - htmxStrLength);
         if (path.endsWith(".modal")) {
             path = path.substring(0, path.lastIndexOf(".modal"));
         }

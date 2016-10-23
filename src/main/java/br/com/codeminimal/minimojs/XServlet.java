@@ -208,11 +208,11 @@ public class XServlet extends HttpServlet {
                 return;
             }
             OutputStream os = resp.getOutputStream();
-            if (path.length > 1 && path[1].equals("res")) {
+            if (XResourceManager.instance.isStaticResource(pathInfo)) {
                 // simple resource
                 setContentType(resp, pathInfo);
                 XHttp.setCachedResponseHeader(1296000);
-                byte[] page = XFileUtil.instance.readFromDisk(pathInfo, null, this.getServletContext());
+                byte[] page = XFileUtil.instance.readFromDisk(pathInfo.startsWith("/res") ? pathInfo : "/res" + pathInfo, null, this.getServletContext());
                 if (page != null) {
                     os.write(page);
                 } else {
