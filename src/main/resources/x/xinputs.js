@@ -79,10 +79,11 @@ function setValueOnInput(input, value){
 		thisX.getAutocomplete(input).setInputValue(value);
 	}else{
 		var compVal = input.value;
+		var xtype = input.getAttribute('data-xtype');
 		//is ref object (script var in html). Replaces val for the real val
 		if(compVal != value){
-			if(input.getAttribute('data-xtype') == 'date' || input.getAttribute('data-xtype') == 'datetime' || 
-					input.getAttribute('data-xtype') == 'time'){
+			if(xtype == 'date' || xtype == 'datetime' ||
+					xtype == 'time'){
 				//xtype is date
 				var isDate = value instanceof Date;
 				if(isDate || input.getAttribute("data-xdatetype") == 'true'){
@@ -92,9 +93,14 @@ function setValueOnInput(input, value){
 				}else{
 					xdom.setAtt(input, "data-xdatetype", 'false');
 				}
-			}else if(input.getAttribute('data-xtype') == 'ifloat'){
-				//xtype is float
-				value = (value + "").replace('.', ',');
+			}else if(xtype == 'imoney' || xtype == 'money'){
+				//xtype is money
+				//TODO mask
+				if(!isNaN(value)){
+			        var sp = (value + '').split('.');
+                    var decimal = sp[1];
+                    value = sp[0] + ',' + decimal + (decimal.length == 1 ? '0' : '');
+				}
 			}
 			input.value = value;
 		}
@@ -168,15 +174,15 @@ function getValueFromInput(input){
         }
 	}else if (type) {
 		xlog.debug("_x_input", "xinputs.getValueFromInput data-xbind: " + input.getAttribute("data-xbind") + ", xtype: " + type);
-		if (type == 'ifloat'){
+		if (type == 'imoney'){
 			if(input.value.indexOf(',') < 0 && input.value.indexOf('.') < 0){
 				type = 'int';
 			}else{
-				type = 'float';
+				type = 'money';
 				input.value = input.value.replace('.', ',');
 				var split = input.value.split(',');
 				val = split[0] + '.' + xmask.padR(split[1], '0', 2);
-				xlog.debug("_x_input", "xinputs.getValueFromInput float val: " + val);
+				xlog.debug("_x_input", "xinputs.getValueFromInput mo val: " + val);
 			}
 		}
 		xlog.debug("_x_input", "xinputs.getValueFromInput new type: " + type + ", value: " + (val || input.value));
@@ -186,12 +192,12 @@ function getValueFromInput(input){
 				val = 0;
 			}
 			xlog.debug("_x_input", "xinputs.getValueFromInput int: " + val);
-		} else if (type == 'float') {
+		} else if (type == 'money') {
 			val = parseInt(xmask.getNumber(val || input.value)) / 100;
 			if(isNaN(val)){
 				val = 0;
 			}
-			xlog.debug("_x_input", "xinputs.getValueFromInput float: " + val);
+			xlog.debug("_x_input", "xinputs.getValueFromInput money: " + val);
 		} else if (type == 'boolean') {
 			val = input.value.toUpperCase() == 'TRUE';
 		} else if (type == 'autocomplete') {

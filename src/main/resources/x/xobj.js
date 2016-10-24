@@ -187,12 +187,12 @@ function _loadObjIntInputs(objName) {
 				xinputs.setValueOnInput(inputArray[i], '');
 			} else {
 				var xtype = inputArray[i].getAttribute('data-xtype');
-				if (xtype == 'ifloat'){
-					//ifloat val
-					xtype = parseInt(value) == value ? 'int' : 'float';
+				if (xtype == 'imoney'){
+					//imoney val
+					xtype = parseInt(value) == value ? 'int' : 'money';
 				}
-				if (xtype == 'float') {
-					//float val
+				if (xtype == 'money') {
+					//money val
 					value = xmask.getDefaultFormatter().format(value);
 				} else if (xtype == 'int') {
 					//int val

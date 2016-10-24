@@ -32,8 +32,8 @@ function getNumber(s, returnEmpty){
 	return r == '' ? def : r;
 }
 
-//format a input of a event and applies the float mask
-function _maskFloat(kc, e){
+//format a input of a event and applies the money mask
+function _maskMoney(kc, e){
 	var unformated = getNumber(e.target.value);
 	if(kc == 8){
 		unformated = unformated.substring(0, unformated.length -2);
@@ -123,8 +123,8 @@ function _maskDate(kc, e){
 	return false;
 }
 
-//format a input of a event and applies the ifloat mask
-function _maskIFloat(kc, e){
+//format a input of a event and applies the imoney mask
+function _maskIMoney(kc, e){
 	var splitted = e.target.value.split(',');
 	return kc == 8 || ((splitted.length == 1 || splitted[1].length < 2) && ((kc >= 48 && kc <= 57) || (kc >= 96 && kc <= 105) || kc == 39 || kc == 37 || kc == 46
 		|| ((kc == 188 || kc == 108) && e.target.value.indexOf(',') < 0)));
@@ -138,10 +138,10 @@ function mask(e){
 		var kc = e.keyCode;
 		if(kc != 9){
 			var xtype = e.target.getAttribute("data-xtype");
-			if(xtype == 'ifloat'){
-				return _maskIFloat(kc, e);
-			}else if(xtype == 'float'){
-				return _maskFloat(kc, e);
+			if(xtype == 'imoney'){
+				return _maskIMoney(kc, e);
+			}else if(xtype == 'money'){
+				return _maskMoney(kc, e);
 			}else if(xtype == 'int' || xtype == 'percent'){
 				return _maskInt(kc, e);
 			}else if(xtype == 'date' || xtype == 'datetime' || xtype == 'time'){

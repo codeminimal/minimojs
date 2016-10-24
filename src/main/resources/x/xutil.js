@@ -189,7 +189,7 @@ function isIE() {
 }
 
 function getIEVersion(){
-	return isIE() ? parseFloat(navigator.appVersion.split("MSIE")[1]) : 999;
+	return isIE() ? parseMoney(navigator.appVersion.split("MSIE")[1]) : 999;
 }
 
 //Create a chord. 
