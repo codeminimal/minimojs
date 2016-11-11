@@ -1,2 +1,2 @@
-# minimaljs
+# minimojs
 Js Framework
