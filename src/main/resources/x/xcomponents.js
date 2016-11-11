@@ -119,19 +119,32 @@ function registerAll(compMap){
 			var comp = list[i];
 			var id = comp.xcompId;
 			delete comp.xcompId;
-			_handles[k][id] = comp;			
+			_handles[k][id] = comp;
 		}
 	}
 }
 
 function prepareComponentContext(e, compCtxSuffix, ctx, postScript){
-	if(e.xcompId && X.comp[e.xcompName].context){
+	if(e.xcompId && (X.comp[e.xcompName].context || X.comp[e.xcompName].htmxContext)){
 		if(!compCtxSuffix[e.xcompId]){
-			var fn = X.comp[e.xcompName].context.toString();
-			fn = fn.substring(0, fn.length-1) + ";this._xcompEval = function(f){try{return eval(f);}catch(e){throw new Error('Error on component script: ' + fn + '. Cause: ' + e.message);}};var var$ = this._xcompEval; " + postScript + "}";
-			thisX._temp._xtemp_comp_struct = _handles[e.xcompName][e.xcompId];
-			var ctx = ctx.eval('new ' + fn + '(X._temp._xtemp_comp_struct)');
-			delete thisX._temp._xtemp_comp_struct;
+		    //must recreate function from string to create it on the right context
+		    var ctx;
+		    if(X.comp[e.xcompName].context){
+                var fn = X.comp[e.xcompName].context.toString();
+                fn = fn.substring(0, fn.length-1) + ";this._xcompEval = function(f){try{return eval(f);}catch(e){throw new Error("+
+                    "'Error on component script: ' + f + '. Cause: ' + e.message);}};" + postScript + "}";
+                thisX._temp._xtemp_comp_struct = _handles[e.xcompName][e.xcompId];
+                ctx = ctx.eval('new ' + fn + '(X._temp._xtemp_comp_struct)');
+                delete thisX._temp._xtemp_comp_struct;
+            }else{
+                var fn = X.comp[e.xcompName].htmxContext.toString();
+                ctx.eval('X._temp._fnContext = ' + fn)
+                ctx = new thisX._temp._fnContext(_handles[e.xcompName][e.xcompId]);
+                if(ctx.defineAttributes){
+                    ctx.defineAttributes();
+                }
+                delete thisX._temp._fnContext;
+            }
 			e._compCtx = ctx;
 			compCtxSuffix[e.xcompId] = ctx;
 		}else{
@@ -164,6 +177,82 @@ function startInstances(){
 	componentInstances = null;
 }
 
+function _createValProp(mandatory, type, instance, properties, evalFn, forChildElements) {
+  return function(child, prop, defaultValue) {
+    if (!forChildElements) {
+      defaultValue = prop == undefined ? null : prop;
+      prop = child;
+      child = null;
+    };
+    evalFn = evalFn || instance._xcompEval;
+    if (child) {
+      var c = instance._attrs[child];
+      if (!c) {
+        if (!mandatory) return;
+        throw new Error('Property ' + prop + ' of ' + instance._compName + ' is mandatory')
+      }
+      if (!(c instanceof Array)) {
+        throw new Error('Property ' + prop + ' of ' + instance._compName + ' is not a subelement')
+      }
+      instance[child] = instance[child] || [];
+      for (var i = 0; i < c.length; i++) {
+        instance[child][i] = instance[child][i] || {};
+        var localInstance = instance[child][i];
+        var p = c[i];
+        localInstance._compName = instance._compName + '.' + child;
+        localInstance[prop] = _createValProp(mandatory, type, localInstance, p, evalFn)(prop, defaultValue)
+      };
+      return;
+    };
+    var r = (properties || instance._attrs)[prop];
+    if(r == undefined){
+      r = (properties || instance._attrs)[prop.toLowerCase()];
+    }
+    if (!r) {
+      if (!mandatory) r = defaultValue; else
+      throw new Error('Property ' + prop + ' of ' + instance._compName + ' is mandatory')
+    }
+    if (type == 's') {
+      if (typeof r != 'string') {
+        throw new Error('Property ' + prop + ' of ' + instance._compName + ' is not string')
+      }
+      instance[prop] = r;
+      return r;
+    } else if (type == 'n') {
+      if (isNaN(r)) {
+        throw new Error('Property ' + prop + ' of ' + instance._compName + ' is not number')
+      }
+      instance[prop] = parseFloat(r);
+      return r;
+    } else if (type == 'b') {
+      if (r.toUpperCase() != 'TRUE' && r.toUpperCase() != 'FALSE') {
+        throw new Error('Property ' + prop + ' of ' + instance._compName + ' is not boolean')
+      }
+      instance[prop] = r.toUpperCase() == 'TRUE'
+    }
+    if (type == 'scr') {
+      instance[prop] = evalFn(r);
+      return r;
+    }
+  }
+}
+
+function _bindValProp(instance) {
+  return function(prop, bindTo) {
+    bindTo = bindTo || prop;
+    var evalFn = instance._xcompEval;
+    var varToBind = instance._attrs[prop];
+    thisX.defineProperty(instance, bindTo,
+        function(){
+            return evalFn(varToBind);
+        },
+        function(v){
+            thisX._temp._setVar = v;
+            evalFn(varToBind + ' = thisX._temp._setVar');
+        }
+    );
+  }
+}
 _expose(initComponents);
 _expose(createComponentConstructors);
 _expose(init);
@@ -172,3 +261,5 @@ _external(registerAll);
 _expose(prepareComponentContext);
 _expose(register);
 _expose(startInstances);
+_external(_createValProp);
+_external(_bindValProp);

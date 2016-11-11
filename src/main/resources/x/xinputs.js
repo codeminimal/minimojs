@@ -321,7 +321,7 @@ function _fireEventAUX(eventName, input, e, updateInputs){
 function execInCorrectContext(input, fn){
     var fnName = 'eval';
     var ctx;
-    var xiterId = input.xcontentIterId || input.xiterId
+    var xiterId = input.xcontentIterId || input.xiterId;
     if(xiterId){
         ctx = xvisual.getIteratorCtx(input);
         ctx.set(input.xiterIndex);

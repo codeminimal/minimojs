@@ -285,7 +285,7 @@ function _buildObjFromInputs(name, isSimpleVar) {
 			}
 			var xvalue = inputArray[i].getAttribute("data-xvalue");
 			if(xvalue && inputArray[i].type != 'checkbox'){
-				val = execInCorrectContext(inputArray[i], xvalue);
+				val = xinputs.execInCorrectContext(inputArray[i], xvalue);
 			}else{
 				val = xinputs.getValueFromInput(inputArray[i]);
 			}
@@ -376,7 +376,7 @@ function _setValueOnObjFromInput(input) {
     var xvalue = input.getAttribute("data-xvalue");
     var val;
     if(xvalue && input.type != 'checkbox'){
-        val = execInCorrectContext(input, xvalue);
+        val = xinputs.execInCorrectContext(input, xvalue);
     }else{
         val = xinputs.getValueFromInput(input);
     }

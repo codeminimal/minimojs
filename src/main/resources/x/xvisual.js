@@ -362,7 +362,7 @@ function updateIterators(){
 				elArray.push(iterEl);
 				var iid = iterEl.xiterId;
 				iterEl.xiteratorStatus = "updating";
-				var iteratorArray = [];
+				var parentIteratorsArray = [];
 				var indexes = [];
 				var parent;
 				var current = iterEl;
@@ -377,7 +377,7 @@ function updateIterators(){
 					var pIid = parent.xiterId;
 					indexInParent = current.xiterIndex != undefined ? current.xiterIndex : null;//avoid undefined
 					indexes.splice(0, 0, indexInParent);
-					iteratorArray.splice(0, 0, _x_iterators[pIid]);
+					parentIteratorsArray.splice(0, 0, _x_iterators[pIid]);
 					current = parent;
 				}
 				if(!iteratorContexts[iid][indexInParent]){
@@ -385,8 +385,8 @@ function updateIterators(){
 					var fnCtx = ['var __transl = {};var __t;var __all;'];
 					var fnUpdateCtx = ['this.update = function(){__t = null;__all=[];'];
 					var i;
-					for(i = 0; i < iteratorArray.length; i++){
-						var item = iteratorArray[i];
+					for(i = 0; i < parentIteratorsArray.length; i++){
+						var item = parentIteratorsArray[i];
 						fnCtx.push("var _x_list_" + i);
 						fnCtx.push("var _x_count_" + i + "=0");
 						fnCtx.push("var _xold_list_" + i + "=null");
@@ -398,9 +398,9 @@ function updateIterators(){
 						fnCtx.push("var " + item.indexVar + "=__arg[" + i + "]");
 						fnUpdateCtx.push("_xold_list_" + i + "=_x_list_" + i);
 						fnUpdateCtx.push("_xold_count_" + i + "=_xold_count_" + i);
-						fnUpdateCtx.push("try{_x_count_" + i + "=" + item.countVar + "}catch(e){_x_count_" + i + "=0;}");
+						fnUpdateCtx.push("try{_x_count_" + i + "=(function (){\nreturn " + item.countVar + ";\n}).call(_xctx)}catch(e){_x_count_" + i + "=0;}");
 						if(item.listVar){
-							fnUpdateCtx.push("try{_x_list_" + i + "=X$.copyArray(" + item.listVar + ");}catch(e){_x_list_" + i + "=[];}");
+							fnUpdateCtx.push("try{_x_list_" + i + "=X$.copyArray((function (){return " + item.listVar + "}).call(_xctx));}catch(e){_x_list_" + i + "=[];}");
 							fnUpdateCtx.push("__t='" + item.listVar + "[' + __arg[" + i + "] + ']'");
 							fnUpdateCtx.push("for(var __k in __transl){__transl[__k].push(__t);}");
 							fnUpdateCtx.push("__transl." + item.itemVar + "=[__t]");
@@ -415,7 +415,7 @@ function updateIterators(){
 						fnCtx.push("var _xold_list_" + i);
 						fnUpdateCtx.push("_xold_list_" + i + "= _x_list_" + i);
 						
-						fnUpdateCtx.push("try{_x_list_" + i + "=X$.copyArray(" + iterator.listVar + ");}catch(e){_x_list_" + i + "=[];}");
+						fnUpdateCtx.push("try{_x_list_" + i + "=X$.copyArray((function (){\nreturn " + iterator.listVar + ";\n}).call(_xctx));}catch(e){_x_list_" + i + "=[];}");
 						if(!iterator.itemVar){
 							iterator.itemVar = "_xv" + xutil.generateId();
 						}
@@ -427,7 +427,7 @@ function updateIterators(){
 						fnCtx.push("var _x_count_" + i + "=0");
 						fnCtx.push("var _xold_count_" + i + "=0");
 						fnUpdateCtx.push("_xold_count_" + i + "=_x_count_" + i);
-						fnUpdateCtx.push("try{_x_count_" + i + "=" + iterator.countVar + "}catch(e){_x_count_" + i + "=0;}");
+						fnUpdateCtx.push("try{_x_count_" + i + "=(function (){\nreturn " + iterator.countVar + ";\n}).call(_xctx)}catch(e){_x_count_" + i + "=0;}");
 					}
 					if(!iterator.indexVar){
 						iterator.indexVar = "_xiv" + xutil.generateId();
@@ -462,7 +462,16 @@ function updateIterators(){
 					fnCtx.push("this.eval = function(f){try{return eval(f);}catch(e){throw new Error('Error on iterator script: ' + f + '. Cause: ' + e.message);}}");
 					//
 					try{
-					    var f = thisX.eval("(function(){return function(__arg){" + fnCtx.join(";\n") + "}})()");
+					    var execCtx;
+					    var fnName;
+					    if(iterEl._compCtx){
+                            execCtx = iterEl._compCtx;
+                            fnName = '_xcompEval';
+                        }else{
+                            execCtx = thisX;
+                            fnName = 'eval';
+                        }
+					    var f = execCtx[fnName]("(function(_xctx){return function(__arg){" + fnCtx.join(";\n") + "}})")(execCtx);
 					}catch(e){
 					    throw Error("Invalid expression iterator/if " + (iterator.countVar || iterator.listVar));
 					}
@@ -561,20 +570,21 @@ function _updateIterElementAttributes(el, html, ctx, xiterId){
     if(!html.c){
         return;
     }
-	var k = 0;
 	var children = xdom._getChildren(el);
-	for(var j = 0; j < children.length; j++){
+	main: for(var j = 0; j < children.length; j++){
 		var e = children[j];
 		if(e.nodeName.toUpperCase() == 'XSCRIPT' || e.xscript){
 			continue;
 		}
 		var c;
+		var k = 0;
 		while(true){
-			if(k == html.c.length){
-				k = 0;
-			}
+		    if(k >= html.c.length){
+		        //not found
+		        continue main;
+		    }
 			c = html.c[k++];
-			if(c.n && c.n != 'xiterator'){
+			if(c.n && c.n != 'xiterator' && c._nodeindex == e._nodeindex){
 				break;
 			}
 		}
@@ -630,15 +640,19 @@ function _updateIterElementScripts(el, ctx, xiterId){
 		var node = array[i];
 		if(node.xcontentIterId == xiterId){
 			ctx.set(node.xiterIndex);
-			var c = ctx;
-			var fnName = 'eval';
+			var fnCtx;
 			if(node._compCtx){
-				c = node._compCtx;
-				fnName = '_xcompEval';
+				fnCtx = function(){
+				    return ctx.eval("(function(){return " + node.xdataXScript + "})").call(node._compCtx);
+				}
+			}else{
+			    fnCtx = function(){
+			        return ctx.eval(node.xdataXScript);
+			    }
 			}
 			var html;
 			try{
-				html = c[fnName](node.xdataXScript);
+				html = fnCtx();
 				html = html == null || html == undefined ? '' : html;
 				html += '';
 			}catch(e){
@@ -686,6 +700,7 @@ function _createHTML(html, parent, index, xid, level, compCtxSuffix, ctx){
 	for(var i = 0; html.c && i < html.c.length; i++){
 		//iterate over children
 		var child = html.c[i];
+		child._nodeindex = i + "";
 		if(child.t){
 			//text
 			node = document.createTextNode(child.t);
@@ -744,6 +759,7 @@ function _createHTML(html, parent, index, xid, level, compCtxSuffix, ctx){
 				xdom._insertBefore(parent, ce, insertBeforeElement);
 			}
 		}
+		node._nodeindex = child._nodeindex;
 		if(level == 0 && i == 0){
 			node.xiterFirstNode = true;
 		}

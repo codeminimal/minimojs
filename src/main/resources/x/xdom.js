@@ -574,7 +574,7 @@ function updateElementsAttributeValue(){
 					if(item.v){
 						val.push(item.v);
 					}else{
-						val.push(thisX.eval(item.s));
+						val.push(xinputs.execInCorrectContext(e, item.s));
 					}
 				}
 				val = val.join('');
@@ -703,9 +703,9 @@ function _createHTML(json, insertPoint, index, onFinish, compCtxSuffix){
 				}else{
 					e = createElement(child.n);
 					_setAttributesOnElement(e, child, dynId, true);
-					_setHiddenAttributesOnElement(e, child);
 					_checkDynOutAttributesOnElement(e, child, dynId);
 				}
+				_setHiddenAttributesOnElement(e, child);
 				_checkCompId(e, compCtxSuffix);
 				insertPoint.appendChild(e);
 				if(isIterator){
