@@ -16,7 +16,7 @@ function _get(path){
 
 //return information about a template of an existing page
 function getTplInfo(path){
-    var info = _get(path);
+    var info = _get(path.replace(/\.html$/, ''));
     return info ? info.templateName : null;
 }
 
@@ -41,6 +41,9 @@ function isImportable(path){
 //it is just a helper function to know if a user should access or not a page.
 //but it does not block user to access of a page and its data. The data protection must be done in server side
 function isAuthorized(path){
+    if(!%servletMode%){
+        return true;
+    }
     var path = path.split('?')[0].replace(/\.js$/, '');
     var resourceName = path.split('/');
     resourceName = resourceName[resourceName.length - 1]

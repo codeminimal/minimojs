@@ -11,12 +11,6 @@ import java.util.*;
 public enum XAuthManager {
     instance;
 
-    private ServletContext ctx;
-
-    public void init(ServletContext ctx) {
-        this.ctx = ctx;
-    }
-
     public AuthProperties getAuthProperties(String pathInfo) throws IOException {
         int dotIndex = pathInfo.lastIndexOf('.');
         int barIndex = pathInfo.lastIndexOf('/');
@@ -27,11 +21,10 @@ public enum XAuthManager {
             propPath = pathInfo;
         }
         byte[] bytes = XFileUtil.instance.readFromDisk(
-                "/pages" + propPath + (propPath.lastIndexOf('/') == 0 ? "/index" : "") + ".auth", null,
-                this.ctx);
+                "/pages" + propPath + (propPath.lastIndexOf('/') == 0 ? "/index" : "") + ".auth", null);
         if (bytes == null) {
             bytes = XFileUtil.instance.readFromDisk("/pages" + propPath.substring(0, propPath.lastIndexOf('/')) + "/auth",
-                    null, this.ctx);
+                    null);
         }
         AuthProperties result = null;
         if (bytes != null) {

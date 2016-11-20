@@ -32,8 +32,8 @@ public class XJS {
 
     static {
         StringBuilder sb = new StringBuilder("[");
-        for (String[] comp : XComponents.components) {
-            sb.append("['X', 'comp', '").append(comp[2]).append("'],");
+        for (XComponents.ComponentVO comp : XComponents.components) {
+            sb.append("['X', 'comp', '").append(comp.jsCreate).append("'],");
         }
         sb.append("]");
         components = sb.toString();
@@ -55,7 +55,7 @@ public class XJS {
 
     public static synchronized void prepareComponents(String js) {
 
-        compEngine = factory.getEngineByName("JavaScript");
+        compEngine = factory.getEngineByName("nashorn");
         try {
             compEngine.eval(js);
         } catch (Exception e) {
@@ -74,6 +74,21 @@ public class XJS {
         try {
             compEngine.eval("var __temp_info__ = " + componentName + ".childElementsInfo();");
             return (Map<String, Map<String, String>>) compEngine.get("__temp_info__");
+        } catch (ScriptException e) {
+            String msg = "Error getting child info on server.";
+            logger.error(msg, e);
+            throw new RuntimeException(msg, e);
+        }
+    }
+
+    public static synchronized Map<String, Object> getDefinedAttributes(String componentName) {
+        if (componentName == null) {
+            return new HashMap<String, Object>();
+        }
+
+        try {
+            compEngine.eval("var __temp_info__ = " + componentName + ".defineAttributes(Packages.br.com.kodeless.minimojs.XComponents.TYPES);");
+            return (Map<String, Object>) compEngine.get("__temp_info__");
         } catch (ScriptException e) {
             String msg = "Error getting child info on server.";
             logger.error(msg, e);
@@ -127,8 +142,8 @@ public class XJS {
 
     public static synchronized String instrumentController(String js, String jsName,
                                                            Set<String> boundVars, Map<String, XModalBind> boundModals, boolean isModal, boolean isGlobal,
-                                                           String htmlStruct, String componentSruct, XResourceManager.JsResource resInfo, ServletContext ctx) throws IOException, ScriptException, XHTMLParsingException {
-        js = prepareInjections(js, boundModals, ctx, null);
+                                                           String htmlStruct, String componentSruct, XResourceManager.JsResource resInfo) throws IOException, ScriptException, XHTMLParsingException {
+        js = prepareInjections(js, boundModals, null);
         int from = 0;
         while (js.indexOf('\\', from) >= 0) {
             int index = js.indexOf('\\', from);
@@ -156,7 +171,7 @@ public class XJS {
                     }
                 }
                 for (String boundVar : boundVars) {
-                    if (!boundVar.trim().equals("")) {
+                    if (!boundVar.trim().equals("") && !boundVar.trim().startsWith("${")  && !boundVar.trim().equals("this")) {
                         boundVarDeclaration.append("var ").append(boundVar).append(";\n");
                     }
                 }
@@ -230,13 +245,12 @@ public class XJS {
      * Prepare injections of services, imports, modals and properties
      *
      * @param js          the js content
-     * @param boundModals the modals bound to this file
-     * @param ctx
+     * @param boundModals the modals bound to this fill
      * @return Returns the js prepared
      * @throws IOException
      * @throws XHTMLParsingException
      */
-    private static String prepareInjections(String js, Map<String, XModalBind> boundModals, ServletContext ctx, StringBuilder xbinds)
+    private static String prepareInjections(String js, Map<String, XModalBind> boundModals, StringBuilder xbinds)
             throws IOException, XHTMLParsingException, ScriptException {
         StringBuilder result = new StringBuilder();
         boolean appendXBinds = false;
@@ -296,13 +310,12 @@ public class XJS {
                 } else if (annotation.equals(Annotation.inject)) {
                     //prepares code injection from js annotation (//inject:path)
                     String scriptPath = "/pages" + line.substring("//inject:".length()) + ".js";
-                    byte[] jsBytesToInject = XFileUtil.instance.readFromDisk(scriptPath, null,
-                            ctx);
+                    byte[] jsBytesToInject = XFileUtil.instance.readFromDisk(scriptPath, null);
                     if (jsBytesToInject == null) {
                         throw new ScriptException("Invalid script path to inject: " + scriptPath);
                     }
-                    String jsToInject = prepareInjections(new String(jsBytesToInject), boundModals, ctx, xbinds);
-                    result.append("// start of ").append(scriptPath).append("\n");
+                    String jsToInject = prepareInjections(new String(jsBytesToInject), boundModals, xbinds);
+                    result.append("// config of ").append(scriptPath).append("\n");
                     result.append(jsToInject).append("\n");
                     result.append("// end of ").append(scriptPath).append("\n");
                     isAnnot = true;

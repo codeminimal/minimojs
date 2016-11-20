@@ -21,10 +21,10 @@ public enum XScriptManager {
 
     private String scripts;
 
-    private String[] modulesToAdd = {"xcomponents", "xdefaultservices", "xdom", "xevents", "xinputs", "xlog", "xmask", "xobj",
+    private String[] modulesToAdd = {"xcomptypes", "xcomponents", "xdefaultservices", "xdom", "xevents", "xinputs", "xlog", "xmask", "xobj",
             "xremote", "xutil", "xvisual", "xautocomplete", "xresources"};
 
-    public void reload(ServletContext ctx, Properties properties, String metaClasses, String resourceInfoMap) throws IOException {
+    public void reload(String metaClasses, String resourceInfoMap) throws IOException {
         String mainScript = XFileUtil.instance.getResource("/x/x.js");
 
         StringBuilder modules = new StringBuilder();
@@ -36,45 +36,48 @@ public enum XScriptManager {
 
         mainScript = replaceString(mainScript, "%resourceInfoMap%", resourceInfoMap);
 
-        String defaultDateFormat = properties.getProperty("defaultdateformat");
+        String defaultDateFormat = X.getProperty("defaultdateformat");
         defaultDateFormat = defaultDateFormat == null ? "" : defaultDateFormat;
         mainScript = replaceAllStrings(mainScript, "%defaultdateformat%", defaultDateFormat);
 
-        String defaultDateTimeFormat = properties.getProperty("defaultdatetimeformat");
+        String defaultDateTimeFormat = X.getProperty("defaultdatetimeformat");
         defaultDateTimeFormat = defaultDateTimeFormat == null ? "" : defaultDateTimeFormat;
         mainScript = replaceAllStrings(mainScript, "%defaultdatetimeformat%", defaultDateTimeFormat);
 
-        String defaultTimeFormat = properties.getProperty("defaulttimeformat");
+        String defaultTimeFormat = X.getProperty("defaulttimeformat");
         defaultTimeFormat = defaultTimeFormat == null ? "" : defaultTimeFormat;
         mainScript = replaceAllStrings(mainScript, "%defaulttimeformat%", defaultTimeFormat);
 
         logger.debug("Initializing js scripts...");
-        mainScript = mainScript.replaceAll("%meta%", metaClasses).replaceAll("%ctx%", ctx.getContextPath());
+        mainScript = mainScript.replaceAll("%meta%", metaClasses).replaceAll("%ctx%", X.getContextPath());
+        mainScript = mainScript.replace("%servletMode%", X.isRunningInServletContainer() + "");
 
         String currencyFormatter = "";
-        if (properties.getProperty("currency.decimal.separator") != null) {
+        if (X.getProperty("currency.decimal.separator") != null) {
             currencyFormatter += "\n_default_decimal_separator = '"
-                    + properties.getProperty("currency.decimal.separator") + "';\n";
+                    + X.getProperty("currency.decimal.separator") + "';\n";
         }
-        if (properties.getProperty("currency.thousand.separator") != null) {
+        if (X.getProperty("currency.thousand.separator") != null) {
             currencyFormatter += "\n_default_thousand_separator = '"
-                    + properties.getProperty("currency.thousand.separator") + "';\n";
+                    + X.getProperty("currency.thousand.separator") + "';\n";
         }
         mainScript = replaceString(mainScript, "%currency_formatter%", currencyFormatter);
 
         mainScript = replaceString(mainScript, "%xdevmode%", String.valueOf(XContext.isDevMode()));
 
-        //mainScript = replaceString(mainScript, "%isspa%", String.valueOf("true".equalsIgnoreCase(properties.getProperty("spa"))));
+        mainScript = replaceString(mainScript, "%parameters_loaded%", X.isRunningInServletContainer() ? "if(!window._x_parameters_loaded){\nreturn false;\n}\n" : "");
+
+        //mainScript = replaceString(mainScript, "%isspa%", String.valueOf("true".equalsIgnoreCase(X.getProperty("spa"))));
 
         logger.debug("Applying templates...");
 
         mainScript = replaceString(mainScript, "%popupmodaltemplates%",
-                XTemplates.preparePopupModalTemplates(properties.getProperty("popup.modal.templates"), ctx));
+                XTemplates.preparePopupModalTemplates(X.getProperty("popup.modal.templates")));
         String jsComponent = XComponents.getJsComponents();
 
         logger.debug("Initializing XComponents...");
         mainScript = replaceString(mainScript, "%xcomponents%", jsComponent);
-        String debugFlags = properties.getProperty("js.debug.flags");
+        String debugFlags = X.getProperty("js.debug.flags");
         if (debugFlags != null) {
             String[] splitDebugFlags = debugFlags.split(",");
             debugFlags = "";
@@ -88,20 +91,20 @@ public enum XScriptManager {
 
         logger.debug("Initializing js scripts template...");
         try {
-            globalScript = XTemplates.templateScripts(properties.getProperty("golbal.script"), ctx);
+            globalScript = XTemplates.templateScripts(X.getProperty("golbal.script"));
         } catch (ScriptException e) {
             logger.fatal("Error reading global script", e);
             System.exit(1);
         }
 
         // TODO ver https
-        this.remoteScripts = mainScript.replaceAll("%sitedomain%", "http://" + properties.getProperty("sitedomain"))
+        this.remoteScripts = mainScript.replaceAll("%sitedomain%", "http://" + X.getProperty("sitedomain"))
                 .replaceAll("%is_remote%", "true").replaceAll("%global_script%", globalScript);
 
         mainScript = mainScript.replaceAll("%sitedomain%", "").replaceAll("%is_remote%", "false");
 
-        if (properties.getProperty("load.jquery") != null
-                && properties.getProperty("load.jquery").equalsIgnoreCase("true")) {
+        if (X.getProperty("load.jquery") != null
+                && X.getProperty("load.jquery").equalsIgnoreCase("true")) {
             scripts = XFileUtil.instance.getResource("/thirdparty/jquery-1.6.1.min.js")
                     + XFileUtil.instance.getResource("/thirdparty/jquery.maskedinput.min.js")
                     + XFileUtil.instance.getResource("/thirdparty/jquery.priceformat.1.7.min.js") + mainScript;

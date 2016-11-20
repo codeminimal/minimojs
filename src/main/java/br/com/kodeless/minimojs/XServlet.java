@@ -1,28 +1,18 @@
 package br.com.kodeless.minimojs;
 
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URLDecoder;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 import javax.script.ScriptException;
 import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import br.com.kodeless.minimojs.model.XUser;
-import com.google.gson.Gson;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUploadException;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
@@ -41,32 +31,40 @@ public class XServlet extends HttpServlet {
 
     private int maxUploadSize = 10000000;
 
-    private String defaultTemplateName;
-
     private String welcomePage;
 
     private byte[] customLoader;
 
     private String esprima;
 
-    private Properties properties;
-
     @Override
-    public void init(ServletConfig config) throws ServletException {
+    public void init(final ServletConfig config) throws ServletException {
         try {
 
             logger.info("Initializing XServlet..");
-            properties = new Properties();
             logger.debug("Loading properties");
-            properties.load(config.getServletContext().getResourceAsStream("/WEB-INF/x.properties"));
-            XAuthManager.instance.init(config.getServletContext());
-            logger.debug("Starting label service");
-            XLabels.start(config.getServletContext());
+            ResourceLoader loader = new ResourceLoader() {
+                @Override
+                public InputStream get(String path) throws IOException {
+                    return config.getServletContext().getResourceAsStream(path);
+                }
 
-            load(config.getServletContext());
+                @Override
+                public Set<String> getPaths(String path) throws IOException {
+                    return config.getServletContext().getResourcePaths(path);
+                }
 
-            logger.debug("Initializing Hibernate Session, data source: " + properties.getProperty("data.source"));
-            XDBManager.instance.init(properties, XObjectsManager.instance.getScheduledObjects());
+                @Override
+                public String getRealPath(String path) {
+                    return config.getServletContext().getRealPath(path);
+                }
+            };
+
+            X.config(config.getServletContext().getContextPath(), config.getServletContext().getResourceAsStream("/WEB-INF/x.properties"), loader);
+            load();
+
+            logger.debug("Initializing Hibernate Session, data source: " + X.getProperty("data.source"));
+            XDBManager.instance.init(XObjectsManager.instance.getScheduledObjects());
 
             super.init(config);
             logger.info("XServlet Initialized");
@@ -77,39 +75,21 @@ public class XServlet extends HttpServlet {
         }
     }
 
-    private void load(ServletContext ctx)
+    private void load()
             throws ClassNotFoundException, InstantiationException, IllegalAccessException, IOException, XHTMLParsingException, ScriptException {
 
-        String devmode = System.getenv("XDEVMODE");
-        if (devmode == null) {
-            devmode = properties.getProperty("devmode");
-        }
-        XContext.setDevMode(devmode != null && devmode.equalsIgnoreCase("true"));
-
-        String maxUploadSizeStr = properties.getProperty("max.upload.size");
+        X.load();
+        String maxUploadSizeStr = X.getProperty("max.upload.size");
         if (maxUploadSizeStr != null) {
             maxUploadSize = Integer.parseInt(maxUploadSizeStr);
         }
         logger.debug("max.upload.size=" + maxUploadSizeStr);
 
-        XComponents.loadComponents(ctx);
-
-        XResourceManager.instance.init(ctx, properties);
-
-        String jsonResourceInfo = new Gson().toJson(XResourceManager.instance.getImportableResourceInfo());
-
-        XObjectsManager.instance.init(properties);
-        //create x script
-        XScriptManager.instance.reload(ctx, properties, XObjectsManager.instance.getScriptMetaClasses(), jsonResourceInfo);
-
         esprima = XFileUtil.instance.getResource("/esprima.js");
 
-        logger.debug("Initializing Loader..");
-        customLoader = XTemplates.loaderImg(properties.getProperty("loader.img.path"), ctx);
+        customLoader = XTemplates.loaderImg(X.getProperty("loader.img.path"));
 
-        defaultTemplateName = properties.getProperty("default.page.template");
-
-        welcomePage = properties.getProperty("welcome.page");
+        welcomePage = X.getProperty("welcome.page");
     }
 
     @Override
@@ -135,7 +115,7 @@ public class XServlet extends HttpServlet {
                 // reload app in dev mode
                 if (XContext.isDevMode()) {
                     try {
-                        load(req.getSession().getServletContext());
+                        load();
                     } catch (Exception e) {
                         throw new ServletException("Error reloading context", e);
                     }
@@ -213,7 +193,7 @@ public class XServlet extends HttpServlet {
                 // simple resource
                 setContentType(resp, pathInfo);
                 XHttp.setCachedResponseHeader(1296000);
-                byte[] page = XFileUtil.instance.readFromDisk(pathInfo.startsWith("/res") ? pathInfo : "/res" + pathInfo, null, this.getServletContext());
+                byte[] page = XFileUtil.instance.readFromDisk(pathInfo.startsWith("/res") ? pathInfo : "/res" + pathInfo, null);
                 if (page != null) {
                     os.write(page);
                 } else {
@@ -235,7 +215,7 @@ public class XServlet extends HttpServlet {
     private void sendToPage(HttpServletRequest req, HttpServletResponse resp, String path, OutputStream os)
             throws IOException, XHTMLParsingException {
         XUser user = (XUser) req.getSession().getAttribute("__x_user");
-        XResourceManager.Resource resInfo = XResourceManager.instance.getResourceInfo(path);
+        XResourceManager.Resource resInfo = XResourceManager.instance.getResourceInfo(path.substring(X.getContextPath().length()));
         if (resInfo == null) {
             error(resp, os, HttpServletResponse.SC_NOT_FOUND);
             return;
@@ -317,8 +297,7 @@ public class XServlet extends HttpServlet {
 
     private void error(HttpServletResponse resp, OutputStream os, int errorCode) throws IOException {
         resp.setStatus(errorCode);
-        os.write(XFileUtil.instance.readFromDisk("error-pages/" + errorCode + ".html", "/errorpages/" + errorCode + ".html",
-                this.getServletContext()));
+        os.write(XFileUtil.instance.readFromDisk("error-pages/" + errorCode + ".html", "/errorpages/" + errorCode + ".html"));
     }
 
     private void setContentType(HttpServletResponse resp, String pathInfo) {
@@ -532,4 +511,27 @@ public class XServlet extends HttpServlet {
         } catch (EOFException e) {
         }
     }
+
+    private void printUploadResponse(boolean ok) throws IOException {
+
+        OutputStream out = XContext.getXResponse().getOutputStream();
+        out.write(("<html><script>parent.X._uploadResponse('" + ok + "');</script></html>").getBytes());
+        out.flush();
+    }
+
+    private void printEmptyGif() throws IOException {
+        XContext.getXResponse().setContentType("image/gif");
+        OutputStream out = XContext.getXResponse().getOutputStream();
+        out.write(XFileUtil.instance.pixel);
+        out.flush();
+    }
+
+    private void sendFile(XFile f) throws IOException {
+        XContext.getXResponse().setContentType(f.getContentType());
+        XContext.getXResponse().setContentLength(f.getData().length);
+        OutputStream output = XContext.getXResponse().getOutputStream();
+        output.write(f.getData());
+        output.flush();
+    }
+
 }

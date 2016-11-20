@@ -2,14 +2,11 @@ package br.com.kodeless.minimojs;
 
 import br.com.kodeless.minimojs.parser.*;
 import com.google.gson.Gson;
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
 import javax.script.ScriptException;
-import javax.servlet.ServletContext;
-import java.io.File;
-import java.io.FileFilter;
-import java.io.FilenameFilter;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.*;
 import java.util.*;
 
@@ -24,8 +21,6 @@ public enum XResourceManager {
 
     private Map<String, byte[]> pages = new HashMap<String, byte[]>();
 
-    private ServletContext ctx;
-
     private Map<String, Resource> resourceInfoMap = new HashMap<String, Resource>();
 
     private Map<String, Boolean> dirs = new HashMap<String, Boolean>();
@@ -33,8 +28,6 @@ public enum XResourceManager {
     private Map<String, ImportableResourceInfo> importableResourceInfo = new HashMap<String, ImportableResourceInfo>();
 
     private String defaultTemplateName;
-
-    private Properties properties;
 
     private boolean isConfiguredToBeSpa;
 
@@ -56,19 +49,29 @@ public enum XResourceManager {
 
     private Set<String> allResources;
 
-    public void init(ServletContext ctx, Properties properties) throws IOException, XHTMLParsingException {
-        this.ctx = ctx;
-        this.properties = properties;
+    private String baseDestPath;
+
+    public void init(String baseDestPath) throws IOException, XHTMLParsingException {
+        this.baseDestPath = baseDestPath;
         //default is true
-        isConfiguredToBeSpa = !("false".equalsIgnoreCase(properties.getProperty("spa")));
+        isConfiguredToBeSpa = !("false".equalsIgnoreCase(X.getProperty("spa")));
         if (logger.isDebugEnabled()) {
             logger.debug("SPA: " + isConfiguredToBeSpa);
         }
-        this.ctxPath = this.ctx.getContextPath();
-        defaultTemplateName = properties.getProperty("default.page.template");
-        basePagesPath = ctx.getRealPath("/pages");
-        baseResPath = ctx.getRealPath("/res");
+        this.ctxPath = X.getContextPath();
+        defaultTemplateName = X.getProperty("default.page.template");
+        basePagesPath = X.getRealPath("/pages");
+        baseResPath = X.getRealPath("/res");
         reload();
+    }
+
+    private void loadPageAndCache(Resource resInfo) throws IOException, XHTMLParsingException {
+        byte[] bytes = loadPage(resInfo);
+        if (X.isRunningInServletContainer()) {
+            pages.put(getResInfoKey(resInfo), bytes);
+        } else {
+            XFileUtil.instance.writeFile(baseDestPath + resInfo.getPath() + (resInfo instanceof HtmxResource ? ".html" : ""), bytes);
+        }
     }
 
     //reload page, scripts and resource info
@@ -77,6 +80,10 @@ public enum XResourceManager {
         validResources = new HashMap<String, List<String>>();
         importableScripts = new HashSet<String>();
         templateMap = new HashMap<String, XHTMLDocument>();
+        if (!X.isRunningInServletContainer()) {
+            //copy all res to dest
+            FileUtils.copyDirectory(new File(baseResPath), new File(baseDestPath));
+        }
         reloadHtmxFiles();
         reloadJsFiles();
         reloadGlobalImported();
@@ -170,7 +177,7 @@ public enum XResourceManager {
                                     //regenerate app cache
                                     generateAppCacheFile();
                                     String jsonResourceInfo = new Gson().toJson(XResourceManager.instance.getImportableResourceInfo());
-                                    XScriptManager.instance.reload(ctx, properties, XObjectsManager.instance.getScriptMetaClasses(), jsonResourceInfo);
+                                    XScriptManager.instance.reload(XObjectsManager.instance.getScriptMetaClasses(), jsonResourceInfo);
                                 } catch (Exception e) {
                                     logger.error("ERROR loading resource " + fileNameString, e);
                                 }
@@ -253,7 +260,7 @@ public enum XResourceManager {
                 return name.endsWith(".js");
             }
         };
-        List<File> jsList = XFileUtil.instance.listFiles("/pages", filter, ctx);
+        List<File> jsList = XFileUtil.instance.listFiles("/pages", filter);
         for (File jsFile : jsList) {
             reloadJs(jsFile);
         }
@@ -327,7 +334,7 @@ public enum XResourceManager {
                 return name.endsWith(".htmx");
             }
         };
-        List<File> htmxList = XFileUtil.instance.listFiles("/pages", filter, ctx);
+        List<File> htmxList = XFileUtil.instance.listFiles("/pages", filter);
         for (File htmxFile : htmxList) {
             reloadHtmxFiles(htmxFile);
         }
@@ -370,10 +377,6 @@ public enum XResourceManager {
         }
     }
 
-    private void loadPageAndCache(Resource resInfo) throws IOException, XHTMLParsingException {
-        pages.put(getResInfoKey(resInfo), loadPage(resInfo));
-    }
-
     /**
      * load htmx and js resources, prepare and cache them.
      */
@@ -382,8 +385,7 @@ public enum XResourceManager {
         boolean isModal = resInfo.modal;
         boolean isGlobal = (resInfo instanceof JsResource && ((JsResource) resInfo).global);
         boolean isJs = resInfo instanceof XResourceManager.JsResource;
-        byte[] page = XFileUtil.instance.readFromDisk(resInfo.getRelativePath(), isJs ? "/empty_file" : null,
-                this.ctx);
+        byte[] page = XFileUtil.instance.readFromDisk(resInfo.getRelativePath(), isJs ? "/empty_file" : null);
         boolean usesTemplate = false;
         if (page != null) {
             String strResponse = new String(page);
@@ -398,7 +400,7 @@ public enum XResourceManager {
                 if (isModal) {
                     //if is modal the page contains the script. So getting the html
                     html = new String(XFileUtil.instance.readFromDisk(((JsResource) resInfo).getHtmx().getRelativePath(),
-                            null, this.ctx));
+                            null));
                 }
                 XHTMLDocument doc = null;
                 //spa main window is the window tha loads just the template. It should not load any page previously
@@ -410,8 +412,7 @@ public enum XResourceManager {
                     if (!hasHtmlElemennt) {
                         isSpaMainWindow = true;
                         usesTemplate = true;
-                        String templateName = XTemplates.getTemplateName(html, defaultTemplateName,
-                                this.ctx, resInfo.isImplicit());
+                        String templateName = XTemplates.getTemplateName(html, defaultTemplateName, resInfo.isImplicit());
                         templateDoc = checkTemplate(resInfo, templateName, boundVars, boundModals);
                         ((HtmxResource) resInfo).templateName = templateName;
                         if (isConfiguredToBeSpa) {
@@ -438,13 +439,13 @@ public enum XResourceManager {
                     ((HtmxResource) resInfo).hasHtmlElement = !usesTemplate;
                 }
 
-                String webctx = this.ctx.getContextPath();
+                String webctx = X.getContextPath();
 
                 //will put all the iterators here
                 List<List<Object>> iteratorList = new ArrayList<List<Object>>();
 
                 //place real html of components, prepare iterators and labels
-                XComponents.prepareHTML(doc, this.ctx.getContextPath(), properties,
+                XComponents.prepareHTML(doc, X.getContextPath(),
                         resInfo.getPath(), boundVars, boundModals, components, iteratorList, isModal);
 
                 if (!isModal) {
@@ -475,8 +476,7 @@ public enum XResourceManager {
                     Map<String, Map<String, Object>> jsonHiddenAtt = new HashMap<String, Map<String, Object>>();
                     Map<String, String> jsonComp = new HashMap<String, String>();
 
-                    html = XTemplates.replaceVars(doc.getHTML(jsonDynAtt, jsonHiddenAtt, jsonComp),
-                            this.ctx);
+                    html = XTemplates.replaceVars(doc.getHTML(jsonDynAtt, jsonHiddenAtt, jsonComp));
 
                     StringBuilder postString = new StringBuilder();
 
@@ -517,7 +517,7 @@ public enum XResourceManager {
                     tempBoundModals.put(resInfo.getPath() + ".js", boundModals);
                     strResponse = html;
                 } else {
-                    htmlStruct = XTemplates.replaceVars(doc.toJson(), this.ctx);
+                    htmlStruct = XTemplates.replaceVars(doc.toJson());
                 }
                 addChildValidElements(resInfo, doc);
             }
@@ -526,10 +526,10 @@ public enum XResourceManager {
                     boundVars = tempBoundVars.remove(resInfo.getPath());
                     boundModals = tempBoundModals.remove(resInfo.getPath());
                 }
-                strResponse = XTemplates.replaceVars(strResponse, this.ctx);
+                strResponse = XTemplates.replaceVars(strResponse);
                 try {
                     strResponse = XJS.instrumentController(strResponse, resInfo.getPath(),
-                            boundVars, boundModals, isModal, isGlobal, htmlStruct, XJson.toJson(components), (JsResource) resInfo, this.ctx);
+                            boundVars, boundModals, isModal, isGlobal, htmlStruct, XJson.toJson(components), (JsResource) resInfo);
                 } catch (ScriptException e) {
                     String msg = "Error in script: " + resInfo.getRealPath();
                     logger.error(msg, e);
@@ -709,24 +709,27 @@ public enum XResourceManager {
             headEl = elementList.get(0);
         }
         // params
-        XElement script = new XElement("script", doc);
-        script.setAttribute("type", "text/javascript");
-        XText scriptContent = new XText();
-        StringBuilder strScript = new StringBuilder();
-        //loads user info
-        strScript.append("var xhttp = new XMLHttpRequest();\n" +
-                "  xhttp.onreadystatechange = function() {\n" +
-                "    if (this.readyState == 4 && this.status == 200) {\n" +
-                "     eval('window.xuser = ' + this.responseText);\n" +
-                "     window._x_parameters_loaded = true;\n" +
-                "    }\n" +
-                "  };\n" +
-                "  xhttp.open(\"POST\", \"" + webctx + "/x/_xprms\", true);\n" +
-                "  xhttp.send();");
-        scriptContent.setText(strScript.toString());
-        script.addChild(scriptContent);
-        headEl.addChild(script);
+        XElement script;
 
+        if (X.isRunningInServletContainer()) {
+            script = new XElement("script", doc);
+            script.setAttribute("type", "text/javascript");
+            XText scriptContent = new XText();
+            StringBuilder strScript = new StringBuilder();
+            //loads user info
+            strScript.append("var xhttp = new XMLHttpRequest();\n" +
+                    "  xhttp.onreadystatechange = function() {\n" +
+                    "    if (this.readyState == 4 && this.status == 200) {\n" +
+                    "     eval('window.xuser = ' + this.responseText);\n" +
+                    "     window._x_parameters_loaded = true;\n" +
+                    "    }\n" +
+                    "  };\n" +
+                    "  xhttp.open(\"POST\", \"" + webctx + "/x/_xprms\", true);\n" +
+                    "  xhttp.send();");
+            scriptContent.setText(strScript.toString());
+            script.addChild(scriptContent);
+            headEl.addChild(script);
+        }
         // cache timestamp
         script = new XElement("script", doc);
         headEl.addChild(script);
@@ -764,20 +767,18 @@ public enum XResourceManager {
         if (resInfo == null && !resourceInfoMap.containsKey(path)) {
             synchronized (this) {
                 Resource result = null;
-                String context = this.ctxPath != null && !this.ctxPath.trim().equals("")
-                        ? this.ctxPath : "";
 
                 boolean isJS = path.endsWith(".js");
 
-                String noExtensionPath = path.substring(context.length());
+                String noExtensionPath = path;
                 if (isJS) {
                     result = new JsResource();
                     result.modal = path.endsWith(".m.js");
                     ((JsResource) result).global = !result.modal && !path.endsWith(".p.js");
 
-                    noExtensionPath = path.substring(context.length(), path.lastIndexOf('.'));
+                    noExtensionPath = path.substring(0, path.lastIndexOf('.'));
                     if (!((JsResource) result).global) {
-                        noExtensionPath = noExtensionPath.substring(context.length(), noExtensionPath.lastIndexOf('.'));
+                        noExtensionPath = noExtensionPath.substring(0, noExtensionPath.lastIndexOf('.'));
                     }
                 }
                 boolean isDir = isDir(noExtensionPath);
@@ -791,7 +792,7 @@ public enum XResourceManager {
                         result.relativePath = "/pages" + noExtensionPath + ".js";
                         HtmxResource htmx = (HtmxResource) getResourceInfo(noExtensionPath);
                         ((JsResource) result).htmx = htmx;
-                        result.realPath = this.ctx.getRealPath(result.relativePath);
+                        result.realPath = X.getRealPath(result.relativePath);
                         boolean existsJs = exists(result);
                         if (!existsJs && htmx == null) {
                             resourceInfoMap.put(path, null);
@@ -807,10 +808,10 @@ public enum XResourceManager {
                         result.unloggedRedirect = noExtensionPath + "/_index";
                     } else {
                         result.relativePath = "/pages" + noExtensionPath + ".htmx";
-                        result.realPath = this.ctx.getRealPath(result.relativePath);
+                        result.realPath = X.getRealPath(result.relativePath);
                         if (!exists(result)) {
                             result.relativePath = "/pages" + noExtensionPath + ".modal.htmx";
-                            result.realPath = this.ctx.getRealPath("/pages" + noExtensionPath + ".modal.htmx");
+                            result.realPath = X.getRealPath("/pages" + noExtensionPath + ".modal.htmx");
                             if (!exists(result)) {
                                 resourceInfoMap.put(path, null);
                                 return null;
@@ -954,14 +955,14 @@ public enum XResourceManager {
 
     }
 
-    private boolean isDir(String pathInfo) {
+    private boolean isDir(String pathInfo) throws IOException {
         Boolean isDir = dirs.get(pathInfo);
         if (isDir != null) {
             return isDir;
         } else {
             isDir = false;
             if (pathInfo.indexOf('.') < 0) {
-                String diskPath = this.ctx.getRealPath("/pages" + pathInfo);
+                String diskPath = X.getRealPath("/pages" + pathInfo);
                 if (diskPath != null) {
                     isDir = new File(diskPath).isDirectory();
                 }

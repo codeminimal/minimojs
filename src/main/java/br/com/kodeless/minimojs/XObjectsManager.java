@@ -41,7 +41,7 @@ public enum XObjectsManager {
 
     private String masterRoleName;
 
-    public void init(Properties properties) throws ClassNotFoundException, IllegalAccessException, InstantiationException {
+    public void init() throws ClassNotFoundException, IllegalAccessException, InstantiationException {
         instancesMap = new HashMap<String, Object>();
         metaMap = new HashMap<String, String>();
         GETMethodsMap = new HashMap<String, Map<String, Method>>();
@@ -50,16 +50,16 @@ public enum XObjectsManager {
             scheduledObjects.clear();
             urlMethods = new HashMap<String, Invoker>();
             Set<Class<? extends Object>> allClasses = new HashSet<Class<? extends Object>>();
-            if (properties.getProperty("service.packages") != null) {
-                logger.debug("service.packages " + properties.getProperty("service.packages"));
-                String[] scanPackages = properties.getProperty("service.packages").split(",");
+            if (X.getProperty("service.packages") != null) {
+                logger.debug("service.packages " + X.getProperty("service.packages"));
+                String[] scanPackages = X.getProperty("service.packages").split(",");
                 for (String packageName : scanPackages) {
                     logger.debug("Scanning service package " + scanPackages);
                     allClasses.addAll(XClassFinder.find(packageName, XObject.class));
                 }
             }
-            if (properties.getProperty("objects") != null) {
-                String[] objects = properties.getProperty("objects").split(",");
+            if (X.getProperty("objects") != null) {
+                String[] objects = X.getProperty("objects").split(",");
                 for (String obj : objects) {
                     allClasses.add(Class.forName(obj));
                 }
@@ -80,21 +80,21 @@ public enum XObjectsManager {
 
         }
 
-        if (properties.get("lifecycle.class") != null) {
+        if (X.getProperty("lifecycle.class") != null) {
             logger.debug("Starting Life cycle object");
             @SuppressWarnings("unchecked")
             Class<? extends XAppLifecycle> cl = (Class<? extends XAppLifecycle>) Class
-                    .forName((String) properties.get("lifecycle.class"));
+                    .forName((String) X.getProperty("lifecycle.class"));
             lifecicle = (XAppLifecycle) cl.newInstance();
             configFields(cl, lifecicle);
             lifecicle.onInit();
         }
 
-        masterRoleName = properties.getProperty("master.role");
+        masterRoleName = X.getProperty("master.role");
 
-        masterUser = properties.getProperty("master.user");
+        masterUser = X.getProperty("master.user");
 
-        masterPassword = properties.getProperty("master.password");
+        masterPassword = X.getProperty("master.password");
 
         if (masterUser != null) {
             XContext.setInUserContext(false);

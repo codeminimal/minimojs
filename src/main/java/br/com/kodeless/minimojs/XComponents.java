@@ -8,7 +8,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.script.ScriptException;
-import javax.servlet.ServletContext;
 
 import br.com.kodeless.minimojs.parser.XAttribute;
 import br.com.kodeless.minimojs.parser.XElement;
@@ -23,7 +22,7 @@ public class XComponents {
 
     private static final Logger logger = Logger.getLogger(XComponents.class);
 
-    protected static List<String[]> components = new ArrayList<String[]>();
+    protected static List<ComponentVO> components = new ArrayList<ComponentVO>();
 
     protected static String serverJSComponents;
 
@@ -35,18 +34,18 @@ public class XComponents {
         return jsComponents;
     }
 
-    protected static void loadComponents(ServletContext ctx) throws IOException, ScriptException {
+    protected static void loadComponents() throws IOException, ScriptException {
         logger.info("Loading components");
         Map<String, String> map = new HashMap<String, String>();
         @SuppressWarnings("unchecked")
-        Set<String> resources = ctx.getResourcePaths("/components");
+        Set<String> resources = X.getResourcePaths("/components");
         for (String resource : resources) {
-            map.put(resource, XStreamUtil.inputStreamToString(ctx.getResourceAsStream(resource)));
+            map.put(resource, XStreamUtil.inputStreamToString(X.getResource(resource)));
         }
-        jsComponents = loadComponents(map, ctx.getContextPath());
+        jsComponents = loadComponents(map);
     }
 
-    protected static String loadComponents(Map<String, String> map, String ctxPath) throws IOException, ScriptException {
+    protected static String loadComponents(Map<String, String> map) throws IOException, ScriptException {
         serverJSComponents = "function generateId() {return java.lang.System.currentTimeMillis() + parseInt(Math.random() * 999999);}";
         StringBuilder sb = new StringBuilder("var components = {};");
         components.clear();
@@ -79,22 +78,24 @@ public class XComponents {
             }
             varPath = varPath + "['" + resName + "']";
             String create = "new" + resName.substring(0, 1).toUpperCase() + resName.substring(1);
+            boolean htmxStyle = false;
             if (jsName != null && htmxName != null) {
+                htmxStyle = true;
                 sb.append(createHtmxComponent(map, jsName, htmxName, varPath, resName));
             } else {
                 sb.append(createOldTypeComponent(map.get(path), varPath, split[1], resName));
             }
             if (!resName.startsWith("_")) {
-                components.add(new String[]{resName, varPath, create});
+                components.add(new ComponentVO(resName, varPath, create, htmxStyle));
             }
         }
         String array = "var _comps = [";
-        for (String[] cname : components) {
-            array += "[\"" + cname[0] + "\",\"" + cname[1] + "\"],";
+        for (ComponentVO component : components) {
+            array += "[\"" + component.resourceName + "\",\"" + component.varPath + "\"],";
         }
         array += "];";
         sb.insert(0, array);
-        String result = sb.toString().replaceAll("\\{webctx\\}", ctxPath);
+        String result = sb.toString().replaceAll("\\{webctx\\}", X.getContextPath());
         XJS.prepareComponents("var components = {};" + serverJSComponents);
         return result;
     }
@@ -124,29 +125,11 @@ public class XComponents {
                 + "= new function(){ this.htmxContext = function(attrs){ var selfcomp = this; this._attrs = attrs; this._compName = '" + componentName + "';" +
                 "this._xcompEval = function(f){try{return eval(f);}catch(e){throw " +
                 "   new Error('Error executing script component ' + this._compName + '. Script: ' + f + '. Cause: ' + e.message);}};" +
-                "try{this.childElementsInfo = childElementsInfo;}catch(e){this.childElementsInfo = function(){return {}}};" +
-                "var defMandatoryString = X._createValProp(true, 's', selfcomp);" +
-                "var defString = X._createValProp(false, 's', selfcomp);" +
-                "var defMandatoryNumber = X._createValProp(true, 'n', selfcomp);" +
-                "var defNumber = X._createValProp(false, 'n', selfcomp);" +
-                "var defMandatoryBoolean = X._createValProp(true, 'b', selfcomp);" +
-                "var defBoolean = X._createValProp(false, 'b', selfcomp);" +
-                "var defMandatoryJsValue = X._createValProp(true, 'scr', selfcomp);" +
-                "var defJsValue = X._createValProp(false, 'scr', selfcomp);" +
-                "var defMandatoryChildString = X._createValProp(true, 's', selfcomp, null, null, true);" +
-                "var defChildString = X._createValProp(false, 's', selfcomp, null, null, true);" +
-                "var defMandatoryChildNumber = X._createValProp(true, 'n', selfcomp, null, null, true);" +
-                "var defChildNumber = X._createValProp(false, 'n', selfcomp, null, null, true);" +
-                "var defMandatoryChildBoolean = X._createValProp(true, 'b', selfcomp, null, null, true);" +
-                "var defChildBoolean = X._createValProp(false, 'b', selfcomp, null, null, true);" +
-                "var defMandatoryChildJsValue = X._createValProp(true, 'src', selfcomp, null, null, true);" +
-                "var bind = X._bindValProp(selfcomp);" +
-                "var defChildJsValue = X._createValProp(false, 'src', selfcomp, null, null, true);\n\n" +
                 js + "\n" + XJS.exposeFunctions(js, "", "this") +
-                "\n\n;var generateId = X.generateId;}};" + varPath + ".childElementsInfo = new " + varPath + ".htmxContext({}).childElementsInfo;";
+                "\n\n;var generateId = X.generateId;}};;";
 
         serverJSComponents += varPath + "= new function(){ " + js
-                + ";try{this.childElementsInfo = childElementsInfo;}catch(e){this.childElementsInfo = function(){return {}}}};";
+                + ";try{this._htmxType = true;this.defineAttributes = defineAttributes;}catch(e){this.defineAttributes = function(){return {}}}};";
         return result;
     }
 
@@ -177,17 +160,15 @@ public class XComponents {
         }
     }
 
-    public static void prepareHTML(XHTMLDocument doc, final String context, Properties properties, String pathInfo,
+    public static void prepareHTML(XHTMLDocument doc, final String context, String pathInfo,
                                    Set<String> boundVars, Map<String, XModalBind> boundModals,
                                    Map<String, List<Map<String, Object>>> componentMap, List<List<Object>> iteratorsList, boolean isModal) {
         try {
             List<XElement> requiredSourceList = doc.getRequiredResourcesList();
 
             // prepared components
-            for (String[] comp : components) {
-                String tagName = comp[0];
-                String componentName = comp[1];
-                buildComponent(tagName, componentName, doc, componentMap, requiredSourceList, boundVars, boundModals);
+            for (ComponentVO comp : components) {
+                buildComponent(comp, doc, componentMap, requiredSourceList, boundVars, boundModals);
             }
             prepareIterators(doc, iteratorsList, isModal);
             prepareLabels(doc);
@@ -269,31 +250,20 @@ public class XComponents {
         }
     }
 
-    private static synchronized void buildComponent(String tagName, String componentName, XHTMLDocument doc,
+    private static synchronized void buildComponent(ComponentVO comp, XHTMLDocument doc,
                                                     Map<String, List<Map<String, Object>>> components, List<XElement> requiredList, Set<String> boundVars,
                                                     Map<String, XModalBind> boundModals) throws XHTMLParsingException {
+        String componentName = comp.varPath;
         XElement element;
-        while ((element = findDeepestChild(doc, tagName.toLowerCase())) != null) {
+        while ((element = findDeepestChild(doc, comp.resourceName.toLowerCase())) != null) {
 
-            // get declared properties in doc tag - start
+            // get declared properties in doc tag - config
             Map<String, Object> infoProperties = new HashMap<String, Object>();
-            Map<String, Map<String, String>> childInfo = XJS.getChildElementsInfo(componentName);
-            for (Map.Entry<String, Map<String, String>> entry : childInfo.entrySet()) {
-                List<Map<String, Object>> childInfoProperties = new ArrayList<Map<String, Object>>();
-                List<XElement> childElements = findAllChildren(element, (String) entry.getValue().get("from"));
-                for (XElement child : childElements) {
-                    Map<String, Object> childInfoMap = new HashMap<String, Object>();
-                    childInfoMap.put("innerHTML", child.innerHTML());
-                    for (XAttribute a : child.getAttributes()) {
-                        childInfoMap.put(a.getName(), a.getValue());
-                    }
-                    child.remove();
-                    childInfoProperties.add(childInfoMap);
-                }
-                infoProperties.put(entry.getKey(), childInfoProperties);
-            }
-            for (XAttribute a : element.getAttributes()) {
-                infoProperties.put(a.getName(), a.getValue());
+            Map<String, String> htmxBoundVars = null;
+            if (comp.htmxStyle) {
+                htmxBoundVars = childInfoHtmxFormat(componentName, element, infoProperties);
+            } else {
+                childInfoOldFormat(componentName, element, infoProperties);
             }
             // get declared properties in doc tag - finish
 
@@ -310,9 +280,12 @@ public class XComponents {
             // parse new html
             XHTMLParser parser = new XHTMLParser();
             XHTMLDocument newDoc = parser.parse(newHTML);
+            if (comp.htmxStyle) {
+                configBinds(newDoc, htmxBoundVars);
+            }
             String id = generateId();
             newDoc.setHiddenAttributeOnChildren("xcompId", id);
-            newDoc.setHiddenAttributeOnChildren("xcompName", tagName);
+            newDoc.setHiddenAttributeOnChildren("xcompName", comp.resourceName);
             infoProperties.put("xcompId", id);
             infoProperties = removeHTML(infoProperties);
 
@@ -331,6 +304,11 @@ public class XComponents {
                 }
             }
             if (boundVars != null) {
+                if (comp.htmxStyle) {
+                    for (String var : htmxBoundVars.values()) {
+                        boundVars.add(var);
+                    }
+                }
                 boundVars.addAll(parser.getBoundObjects());
             }
             if (boundModals != null) {
@@ -345,13 +323,80 @@ public class XComponents {
                 newNode.addAfter(auxNode);
                 newNode = auxNode;
             }
-            List<Map<String, Object>> listByComponent = components.get(tagName);
+            List<Map<String, Object>> listByComponent = components.get(comp.resourceName);
             if (listByComponent == null) {
                 listByComponent = new ArrayList<Map<String, Object>>();
-                components.put(tagName, listByComponent);
+                components.put(comp.resourceName, listByComponent);
             }
 
             listByComponent.add(infoProperties);
+        }
+    }
+
+    //replace the values with the configured in the component. ex: <comp b="xx"> with b = types.bind -> <input data-xbind="xx">
+    private static void configBinds(XHTMLDocument doc, Map<String, String> htmxBoundVars) {
+        List<XElement> elements = doc.getElementsWithAttribute("data-xbind");
+        for (XElement e : elements) {
+            String val = e.getAttribute("data-xbind");
+            if (htmxBoundVars.containsKey(val)) {
+                e.setAttribute("data-xbind", htmxBoundVars.get(val));
+            }
+        }
+    }
+
+    private static Map<String, String> childInfoHtmxFormat(String componentName, XElement element, Map<String, Object> infoProperties) {
+        Map<String, String> boundVars = new HashMap<String, String>();
+        Map<String, Object> definedAttributes = XJS.getDefinedAttributes(componentName);
+        prepareDefinedAttributes(element, infoProperties, boundVars, definedAttributes);
+        return boundVars;
+    }
+
+    private static void prepareDefinedAttributes(XElement element, Map<String, Object> infoProperties, Map<String, String> boundVars, Map<String, Object> definedAttributes) {
+        for (Map.Entry<String, Object> entry : definedAttributes.entrySet()) {
+            if (entry.getValue() instanceof Map) {
+                List<Map<String, Object>> childInfoProperties = new ArrayList<Map<String, Object>>();
+                List<XElement> childElements = findAllChildren(element, entry.getKey());
+                for (XElement child : childElements) {
+                    Map<String, Object> childInfoMap = new HashMap<String, Object>();
+                    prepareDefinedAttributes(child, childInfoMap, boundVars, (Map<String, Object>) entry.getValue());
+                    child.remove();
+                    childInfoProperties.add(childInfoMap);
+                }
+                infoProperties.put(entry.getKey(), childInfoProperties);
+            } else {
+                String value = element.getAttribute(entry.getKey());
+                AttributeType attType = (AttributeType) entry.getValue();
+                if (attType.equals(TYPES.bind) || attType.equals(TYPES.mandatory.bind)) {
+                    //bind dont go to client. It is rendered on compile time
+                    boundVars.put(entry.getKey(), value);
+                } else if (attType.equals(TYPES.innerHTML) || attType.equals(TYPES.mandatory.innerHTML)) {
+                    infoProperties.put(entry.getKey(), element.innerHTML());
+                } else {
+                    //attribute
+                    infoProperties.put(entry.getKey(), value);
+                }
+            }
+        }
+    }
+
+    private static void childInfoOldFormat(String componentName, XElement element, Map<String, Object> infoProperties) {
+        Map<String, Map<String, String>> childInfo = XJS.getChildElementsInfo(componentName);
+        for (Map.Entry<String, Map<String, String>> entry : childInfo.entrySet()) {
+            List<Map<String, Object>> childInfoProperties = new ArrayList<Map<String, Object>>();
+            List<XElement> childElements = findAllChildren(element, entry.getValue().get("from"));
+            for (XElement child : childElements) {
+                Map<String, Object> childInfoMap = new HashMap<String, Object>();
+                childInfoMap.put("innerHTML", child.innerHTML());
+                for (XAttribute a : child.getAttributes()) {
+                    childInfoMap.put(a.getName(), a.getValue());
+                }
+                child.remove();
+                childInfoProperties.add(childInfoMap);
+            }
+            infoProperties.put(entry.getKey(), childInfoProperties);
+        }
+        for (XAttribute a : element.getAttributes()) {
+            infoProperties.put(a.getName(), a.getValue());
         }
     }
 
@@ -480,4 +525,60 @@ public class XComponents {
             e.printStackTrace();
         }
     }
+
+    public static class ComponentVO {
+        String resourceName;
+        String varPath;
+        String jsCreate;
+        boolean htmxStyle;
+
+        ComponentVO(String resName, String path, String create, boolean htmx) {
+            this.resourceName = resName;
+            this.varPath = path;
+            this.jsCreate = create;
+            this.htmxStyle = htmx;
+        }
+    }
+
+    public static class AttributeType {
+        int id;
+
+        public AttributeType defaultValue(Object o) {
+            return this;
+        }
+
+        AttributeType(int id) {
+            this.id = id;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return id == ((AttributeType) obj).id;
+        }
+    }
+
+    public static class Mandatory {
+        public AttributeType string = new AttributeType(8);
+        public AttributeType number = new AttributeType(9);
+        public AttributeType bool = new AttributeType(10);
+        public AttributeType boundVariable = new AttributeType(11);
+        public AttributeType innerHTML = new AttributeType(12);
+        public AttributeType bind = new AttributeType(13);
+        public AttributeType script = new AttributeType(14);
+        public AttributeType any = new AttributeType(16);
+    }
+
+    public static class Types {
+        public AttributeType string = new AttributeType(1);
+        public AttributeType number = new AttributeType(2);
+        public AttributeType bool = new AttributeType(3);
+        public AttributeType boundVariable = new AttributeType(4);
+        public AttributeType innerHTML = new AttributeType(5);
+        public AttributeType bind = new AttributeType(6);
+        public AttributeType script = new AttributeType(7);
+        public AttributeType any = new AttributeType(15);
+        public Mandatory mandatory = new Mandatory();
+    }
+
+    public static final Types TYPES = new Types();
 }

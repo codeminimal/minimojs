@@ -335,9 +335,7 @@ var X$ = X$ || new function(){
 				return false;
 			}
 		}
-		if(!window._x_parameters_loaded){
-			return false;
-		}
+		%parameters_loaded%
 		return X$.canCloseInitLoad();
 	};
 	this._update = function(){

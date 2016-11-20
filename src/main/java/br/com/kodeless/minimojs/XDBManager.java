@@ -25,8 +25,8 @@ public enum XDBManager {
 
     private List<Object[]> scheduledObjects;
 
-    public void init(Properties properties, List<Object[]> scheduledObjects) {
-        String jndiDataSource = properties.getProperty("data.source");
+    public void init(List<Object[]> scheduledObjects) {
+        String jndiDataSource = X.getProperty("data.source");
         this.scheduledObjects = scheduledObjects;
         if (jndiDataSource != null) {
 
@@ -38,7 +38,7 @@ public enum XDBManager {
             Configuration configuration = new Configuration();
 
             configuration.setProperty("hibernate.connection.datasource", jndiDataSource);
-            configuration.setProperty("hibernate.hbm2ddl.auto", properties.getProperty("hibernate.hbm2ddl.auto", "update"));
+            configuration.setProperty("hibernate.hbm2ddl.auto", X.getProperty("hibernate.hbm2ddl.auto", "update"));
             configuration.setProperty("hibernate.ejb.naming_strategy",
                     "org.hibernate.cfg.DefaultComponentSafeNamingStrategy");
             if (XContext.isDevMode()) {
@@ -46,7 +46,7 @@ public enum XDBManager {
             }
             //configuring hibernate to find the entity classes
             configuration.addAnnotatedClass(XSchedule.class);
-            String[] packages = properties.getProperty("entity.packages").split(",");
+            String[] packages = X.getProperty("entity.packages").split(",");
             for (String packageName : packages) {
                 List<Class<?>> classes = XClassFinder.find(packageName, Entity.class);
                 for (Class<?> clazz : classes) {
@@ -57,7 +57,7 @@ public enum XDBManager {
             logger.debug("Building hibernate session...");
             sessions = configuration.buildSessionFactory();
 
-            //start robot thread
+            //config robot thread
             robot = new XRobotThread(scheduledObjects, XDBManager.instance.getSessionFactory());
             robot.start();
 

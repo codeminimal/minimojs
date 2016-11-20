@@ -10,11 +10,6 @@ import javax.servlet.ServletContext;
 public class XLabels {
 
 	static Map<String, Properties> propertyMap = new HashMap<String, Properties>();
-	private static ServletContext context;
-
-	public static void start(ServletContext ctx) {
-		context = ctx;
-	}
 
 	public static String getLabel(String label) throws XLabelException {
 		String[] s = label.split("#");
@@ -31,7 +26,7 @@ public class XLabels {
 			if (p == null) {
 				p = new Properties();
 				try {
-					p.load(context.getResourceAsStream("/labels/" + file));
+					p.load(X.getResource("/labels/" + file));
 				} catch (IOException e) {
 					throw new XLabelException("Error reading file " + file, e);
 				}

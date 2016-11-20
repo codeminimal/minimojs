@@ -141,7 +141,7 @@ function prepareComponentContext(e, compCtxSuffix, ctx, postScript){
                 ctx.eval('X._temp._fnContext = ' + fn)
                 ctx = new thisX._temp._fnContext(_handles[e.xcompName][e.xcompId]);
                 if(ctx.defineAttributes){
-                    ctx.defineAttributes();
+                    xcomptypes.configAttributes(ctx);
                 }
                 delete thisX._temp._fnContext;
             }
@@ -177,82 +177,6 @@ function startInstances(){
 	componentInstances = null;
 }
 
-function _createValProp(mandatory, type, instance, properties, evalFn, forChildElements) {
-  return function(child, prop, defaultValue) {
-    if (!forChildElements) {
-      defaultValue = prop == undefined ? null : prop;
-      prop = child;
-      child = null;
-    };
-    evalFn = evalFn || instance._xcompEval;
-    if (child) {
-      var c = instance._attrs[child];
-      if (!c) {
-        if (!mandatory) return;
-        throw new Error('Property ' + prop + ' of ' + instance._compName + ' is mandatory')
-      }
-      if (!(c instanceof Array)) {
-        throw new Error('Property ' + prop + ' of ' + instance._compName + ' is not a subelement')
-      }
-      instance[child] = instance[child] || [];
-      for (var i = 0; i < c.length; i++) {
-        instance[child][i] = instance[child][i] || {};
-        var localInstance = instance[child][i];
-        var p = c[i];
-        localInstance._compName = instance._compName + '.' + child;
-        localInstance[prop] = _createValProp(mandatory, type, localInstance, p, evalFn)(prop, defaultValue)
-      };
-      return;
-    };
-    var r = (properties || instance._attrs)[prop];
-    if(r == undefined){
-      r = (properties || instance._attrs)[prop.toLowerCase()];
-    }
-    if (!r) {
-      if (!mandatory) r = defaultValue; else
-      throw new Error('Property ' + prop + ' of ' + instance._compName + ' is mandatory')
-    }
-    if (type == 's') {
-      if (typeof r != 'string') {
-        throw new Error('Property ' + prop + ' of ' + instance._compName + ' is not string')
-      }
-      instance[prop] = r;
-      return r;
-    } else if (type == 'n') {
-      if (isNaN(r)) {
-        throw new Error('Property ' + prop + ' of ' + instance._compName + ' is not number')
-      }
-      instance[prop] = parseFloat(r);
-      return r;
-    } else if (type == 'b') {
-      if (r.toUpperCase() != 'TRUE' && r.toUpperCase() != 'FALSE') {
-        throw new Error('Property ' + prop + ' of ' + instance._compName + ' is not boolean')
-      }
-      instance[prop] = r.toUpperCase() == 'TRUE'
-    }
-    if (type == 'scr') {
-      instance[prop] = evalFn(r);
-      return r;
-    }
-  }
-}
-
-function _bindValProp(instance) {
-  return function(prop, bindTo) {
-    bindTo = bindTo || prop;
-    var evalFn = instance._xcompEval;
-    var varToBind = instance._attrs[prop];
-    thisX.defineProperty(instance, bindTo,
-        function(){
-            return evalFn(varToBind);
-        },
-        function(v){
-            thisX._temp._setVar = v;
-            evalFn(varToBind + ' = thisX._temp._setVar');
-        }
-    );
-  }
-}
 _expose(initComponents);
 _expose(createComponentConstructors);
 _expose(init);
@@ -261,5 +185,3 @@ _external(registerAll);
 _expose(prepareComponentContext);
 _expose(register);
 _expose(startInstances);
-_external(_createValProp);
-_external(_bindValProp);

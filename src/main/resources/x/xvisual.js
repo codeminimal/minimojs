@@ -23,7 +23,7 @@ function modal(obj, type, callback, isSpa){
 	if(isPopup){
 		thisX.showLoading();
 	}
-	var jsName = obj.url + ".m.js";
+	var jsName = obj.url.replace(/\.html$/, '') + ".m.js";
 	if(!window['_x_modal_parameters']){
 		window['_x_modal_parameters'] = {};
 	}
@@ -593,13 +593,23 @@ function _updateIterElementAttributes(el, html, ctx, xiterId){
 				continue;
 			}
 			ctx.set(e.xiterIndex);
+			var fnCtx;
+            if(e._compCtx){
+                fnCtx = function(xscr){
+                    return ctx.eval("(function(){return " + xscr + "})").call(e._compCtx);
+                }
+            }else{
+                fnCtx = function(xscr){
+                    return ctx.eval(xscr);
+                }
+            }
 			var val = [];
 			for(var l = 0; l < c.a[attName].length; l++){
 				var v = c.a[attName][l];
 				if(v.v){
 					val.push(v.v);
 				}else{
-					val.push(ctx.eval(v.s));
+					val.push(fnCtx(v.s));
 				}
 			}
 			if(attName.indexOf('on') == 0 && e.getAttribute("data-x" + attName)){
@@ -747,7 +757,7 @@ function _createHTML(html, parent, index, xid, level, compCtxSuffix, ctx){
 				node.xiteratorStatus = "none";
 				node.xiterId = node.xiterId || child.xiterid;
 				if(!_x_iterators[node.xiterId]){
-				    __registerIterator(node.xiterId, child.a.list ? child.a.list[0] : child.a.count[0], child.a['var'] ? child.a['var'][0] : '_x', child.a.indexvar[0], child, child.a.list != null);
+				    __registerIterator(node.xiterId, child.a.list ? child.a.list[0] : child.a.count[0], child.a['var'] ? child.a['var'][0] : '_x', child.a.indexvar ? child.a.indexvar[0] : "_ix", child, child.a.list != null);
 				}
 			}
 			xdom._insertBefore(parent, node, insertBeforeElement);
