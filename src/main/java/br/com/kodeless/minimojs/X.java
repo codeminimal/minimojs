@@ -62,15 +62,24 @@ public class X {
 
             @Override
             public Set<String> getPaths(String path) throws IOException {
+                Set<String> set = new HashSet<String>();
+                getAllPaths(path, set);
+                return set;
+            }
+
+            private void getAllPaths(String path, Set<String> set) throws IOException {
                 File file = new File(currentPath + "/" + path);
                 if (file.isDirectory()) {
-                    Set<String> set = new HashSet<String>();
+
                     for (String fileName : file.list()) {
-                        set.add(path + "/" + fileName);
+                        file = new File(currentPath + "/" + path + "/" + fileName);
+                        if (file.isDirectory()) {
+                            getAllPaths(path + "/" + fileName, set);
+                        } else {
+                            set.add(path + "/" + fileName);
+                        }
                     }
-                    return set;
                 }
-                return null;
             }
 
             @Override

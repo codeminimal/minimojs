@@ -50,6 +50,8 @@ public class XComponents {
         StringBuilder sb = new StringBuilder("var components = {};");
         components.clear();
         htmxSources.clear();
+        //component folder
+        Set<String> addedComponents = new HashSet<String>();
 
         List<String> keys = new ArrayList<String>(map.keySet());
         for (int index = 0; index < keys.size(); index++) {
@@ -62,7 +64,11 @@ public class XComponents {
             String varPath = "components";
             for (int i = 2; i < parts.length - 1; i++) {
                 String newInst = varPath + "['" + parts[i] + "']";
-                sb.append(newInst).append("={}");
+                if (!addedComponents.contains(newInst)) {
+                    addedComponents.add(newInst);
+                    sb.append(newInst).append("={};");
+                    serverJSComponents += newInst + "={};";
+                }
                 varPath = newInst;
             }
             String[] split = lastPart.split("\\.");
@@ -77,16 +83,32 @@ public class XComponents {
                 keys.remove(keys.indexOf(jsName));
             }
             varPath = varPath + "['" + resName + "']";
-            String create = "new" + resName.substring(0, 1).toUpperCase() + resName.substring(1);
+
+            //create opeartion on X to instanciate components programatically
+            String newComp = removeInvalidChars(resName);
+
+            String create = "new" + newComp.substring(0, 1).toUpperCase() + newComp.substring(1);
+
+            String compName = parts[2];
+            for (int i = 3; i < parts.length; i++) {
+                compName += ".";
+                if (i == parts.length - 1) {
+                    compName += parts[parts.length - 1].substring(0, parts[parts.length - 1].lastIndexOf('.'));
+                } else {
+                    compName += parts[i];
+                }
+            }
+
             boolean htmxStyle = false;
             if (jsName != null && htmxName != null) {
                 htmxStyle = true;
-                sb.append(createHtmxComponent(map, jsName, htmxName, varPath, resName));
+                sb.append(createHtmxComponent(map, jsName, htmxName, varPath, compName));
             } else {
-                sb.append(createOldTypeComponent(map.get(path), varPath, split[1], resName));
+                sb.append(createOldTypeComponent(map.get(path), varPath, split[1], compName));
             }
-            if (!resName.startsWith("_")) {
-                components.add(new ComponentVO(resName, varPath, create, htmxStyle));
+            if (!compName.startsWith("_")) {
+                sb.append("components['").append(compName).append("']=").append(varPath).append(";");
+                components.add(new ComponentVO(compName, varPath, create, htmxStyle));
             }
         }
         String array = "var _comps = [";
@@ -98,6 +120,21 @@ public class XComponents {
         String result = sb.toString().replaceAll("\\{webctx\\}", X.getContextPath());
         XJS.prepareComponents("var components = {};" + serverJSComponents);
         return result;
+    }
+
+    private static String removeInvalidChars(String resName) {
+        String newComp = resName;
+        int indexRemove = 0;
+        do {
+            indexRemove = newComp.indexOf('-');
+            if (indexRemove < 0) {
+                indexRemove = newComp.indexOf('.');
+            }
+            if (indexRemove >= 0) {
+                newComp = newComp.substring(0, indexRemove) + newComp.substring(indexRemove + 1, indexRemove + 2).toUpperCase() + newComp.substring(indexRemove + 2);
+            }
+        } while (indexRemove >= 0);
+        return newComp;
     }
 
     private static String createOldTypeComponent(String s, String varPath, String extension, String resName) {
@@ -306,7 +343,7 @@ public class XComponents {
             if (boundVars != null) {
                 if (comp.htmxStyle) {
                     for (String var : htmxBoundVars.values()) {
-                        boundVars.add(var);
+                        boundVars.add(var.split("\\.")[0]);
                     }
                 }
                 boundVars.addAll(parser.getBoundObjects());

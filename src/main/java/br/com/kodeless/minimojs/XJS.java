@@ -90,7 +90,7 @@ public class XJS {
             compEngine.eval("var __temp_info__ = " + componentName + ".defineAttributes(Packages.br.com.kodeless.minimojs.XComponents.TYPES);");
             return (Map<String, Object>) compEngine.get("__temp_info__");
         } catch (ScriptException e) {
-            String msg = "Error getting child info on server.";
+            String msg = "Error getting child info on server for component " + componentName;
             logger.error(msg, e);
             throw new RuntimeException(msg, e);
         }
@@ -171,7 +171,7 @@ public class XJS {
                     }
                 }
                 for (String boundVar : boundVars) {
-                    if (!boundVar.trim().equals("") && !boundVar.trim().startsWith("${")  && !boundVar.trim().equals("this")) {
+                    if (!boundVar.trim().equals("") && !boundVar.trim().startsWith("${") && !boundVar.trim().equals("this")) {
                         boundVarDeclaration.append("var ").append(boundVar).append(";\n");
                     }
                 }

@@ -100,7 +100,7 @@ function _configVal(instance, r, type, prop, evalFn){
       }
       return r;
     }else{
-        var match = r.match(/\${(.*?)}/);
+        var match = r && r.match && r.match(/\${(.*?)}/);
         if(match){
             var values = [];
             while(match){
@@ -113,22 +113,22 @@ function _configVal(instance, r, type, prop, evalFn){
             _definePropertyForXScr(instance, prop, evalFn, values, type);
         }else{
             if (type == 's') {
-              if (typeof r != 'string') {
+              if (r != null && typeof r != 'string') {
                 throw new Error('Property ' + prop + ' of ' + instance._compName + ' is not string')
               }
               instance[prop] = r;
               return r;
             } else if (type == 'n') {
-              if (isNaN(r)) {
+              if (r != null && isNaN(r)) {
                 throw new Error('Property ' + prop + ' of ' + instance._compName + ' is not number')
               }
               instance[prop] = parseFloat(r);
               return r;
-            } else if (type == 'b') {
-              if (r.toUpperCase() != 'TRUE' && r.toUpperCase() != 'FALSE') {
+            } else if (r != null && type == 'b') {
+              if (r.toUpperCase && r.toUpperCase() != 'TRUE' && r.toUpperCase() != 'FALSE') {
                 throw new Error('Property ' + prop + ' of ' + instance._compName + ' is not boolean')
               }
-              instance[prop] = r.toUpperCase() == 'TRUE'
+              instance[prop] = r.toUpperCase ? r.toUpperCase() == 'TRUE' : r;
             } else if (type == 'a') {
                 instance[prop] = r
             }

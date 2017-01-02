@@ -96,7 +96,9 @@ function setValueOnInput(input, value){
 			}else if(xtype == 'imoney' || xtype == 'money'){
 				//xtype is money
 				//TODO mask
-				if(!isNaN(value)){
+				if(!value){
+                    value = '0,0'
+				}else if(!isNaN(value)){
 			        var sp = (value + '').split('.');
                     var decimal = sp[1];
                     value = sp[0] + ',' + decimal + (decimal.length == 1 ? '0' : '');
