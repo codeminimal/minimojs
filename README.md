@@ -6,7 +6,7 @@ Despite of it is being used in a personal project, the framework is still not re
 
 To see the project that is using the framwork (also under construction) goto:
 
-http://http://52.39.110.18/
+http://52.39.110.18/
 
 login: lpp
 
