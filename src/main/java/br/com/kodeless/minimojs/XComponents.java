@@ -89,9 +89,11 @@ public class XComponents {
 
             String create = "new" + newComp.substring(0, 1).toUpperCase() + newComp.substring(1);
 
-            String compName = parts[2];
-            for (int i = 3; i < parts.length; i++) {
-                compName += ".";
+            String compName = "";
+            for (int i = 2; i < parts.length; i++) {
+                if (i > 2) {
+                    compName += ".";
+                }
                 if (i == parts.length - 1) {
                     compName += parts[parts.length - 1].substring(0, parts[parts.length - 1].lastIndexOf('.'));
                 } else {
