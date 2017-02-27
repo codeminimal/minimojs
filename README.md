@@ -8,6 +8,8 @@ To see the project that is using the framwork (also under construction) goto:
 
 http://52.39.110.18/
 
+Company Code: salaovip
+
 login: lpp
 
 password: 1234
