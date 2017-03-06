@@ -510,7 +510,7 @@ var _XClass = function(parent) {
 		if(!X$.getJsCallbacks[resName]){
 			X$.getJsCallbacks[resName] = [];
 			var scr = xdom.createElement("script");
-			xdom.setAtt(scr, "src", resName);
+			xdom.setAtt(scr, "src", "%ctx%" + resName);
 			document.body.appendChild(scr);
 		}
 		//TODO it is temporary. Will be replaced by app.cache

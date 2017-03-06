@@ -3,9 +3,7 @@ package br.com.kodeless.minimojs;
 import org.apache.log4j.Logger;
 
 import javax.script.ScriptException;
-import javax.servlet.ServletContext;
 import java.io.IOException;
-import java.util.Properties;
 
 /**
  * Created by eduardo on 8/21/16.

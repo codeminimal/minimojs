@@ -1,22 +1,15 @@
 
 package br.com.kodeless.minimojs;
 
+import br.com.kodeless.minimojs.parser.*;
+import org.apache.log4j.Logger;
+
+import javax.script.ScriptException;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import javax.script.ScriptException;
-
-import br.com.kodeless.minimojs.parser.XAttribute;
-import br.com.kodeless.minimojs.parser.XElement;
-import br.com.kodeless.minimojs.parser.XHTMLDocument;
-import br.com.kodeless.minimojs.parser.XHTMLParser;
-import br.com.kodeless.minimojs.parser.XHTMLParsingException;
-import br.com.kodeless.minimojs.parser.XModalBind;
-import br.com.kodeless.minimojs.parser.XNode;
-import org.apache.log4j.Logger;
 
 public class XComponents {
 
@@ -199,8 +192,7 @@ public class XComponents {
         }
     }
 
-    public static void prepareHTML(XHTMLDocument doc, final String context, String pathInfo,
-                                   Set<String> boundVars, Map<String, XModalBind> boundModals,
+    public static void prepareHTML(XHTMLDocument doc, Set<String> boundVars, Map<String, XModalBind> boundModals,
                                    Map<String, List<Map<String, Object>>> componentMap, List<List<Object>> iteratorsList, boolean isModal) {
         try {
             List<XElement> requiredSourceList = doc.getRequiredResourcesList();

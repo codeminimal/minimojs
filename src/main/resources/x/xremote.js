@@ -3,10 +3,9 @@ var metaObj = %meta%;
 //import remote script
 function importScript(jsName, insertPoint, callback, parentX, isSpa){
 	xlog.debug("ximport", "Importing script " + jsName);
-	var path = "%ctx%" + jsName;
 	var X = new _XClass(parentX);
 	X.isSpa = isSpa;
-	X._getJS(path, insertPoint, callback);
+	X._getJS(jsName, insertPoint, callback);
 }
 
 var importCallback = {}
@@ -39,9 +38,7 @@ function go(path, param) {
 		if(param){
 			path += '?_xjp=' + encodeURIComponent(xutil._btoa(xutil.stringify(param)));
 		}
-		var fullPath = '%ctx%' + path;
-		//window.location.href = fullPath;
-        xvisual.onPushStateSpa(fullPath);
+        xvisual.onPushStateSpa(path);
 	},10);
 }
 

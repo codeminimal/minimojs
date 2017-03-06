@@ -84,10 +84,11 @@ function setSpaModalNode(insertPoint){
 function _parseUrl(url){
     var qmIndex = url.indexOf('?');
     var path = qmIndex >= 0 ? url.substring(0, qmIndex) : url;
+    path = path.substring('%ctx%'.length);
     return {
         path: path,
         query: qmIndex >= 0 ? url.substring(qmIndex) : '',
-        tpl: xresources.getTplInfo(path.substring('%ctx%'.length))
+        tpl: xresources.getTplInfo(path)
     }
 }
 
@@ -99,11 +100,11 @@ function _spaModal(gotoUrl, skipUpdateState){
 	var goto = _parseUrl(gotoUrl);
 	if(!goto.tpl || !current.tpl || goto.tpl != current.tpl){
 	    //incompatible window (not the same tamplate, or no template at all)
-        window.location = goto.path + goto.query;
+        //window.location = goto.path + goto.query;
 	}else{
 	    var tempNode = document.createElement('div');
 	    if(!skipUpdateState){
-	        history.pushState(null, null, goto.path + goto.query);
+	        history.pushState(null, null, "%ctx%" + goto.path + goto.query);
 	        X$._lastUrl = X$._currentUrl;
             X$._currentUrl = window.location.toString();
 	    }
@@ -140,7 +141,7 @@ function toggleModal(obj, callback){
 	var beforeShowModal = thisX.beforeShowModal;
 	try {
 		thisX.debug("xstartup", "XObj calling before show modal");
-		thisX.eval('if(X.beforeShowModal){X.beforeShowModal("' + obj.url.substring("%ctx%".length) + '");}');
+		thisX.eval('if(X.beforeShowModal){X.beforeShowModal("' + obj.url + '");}');
 	} catch (e) {
 		xlog.error("xstartup", "XObj error calling init");
 		throw e;

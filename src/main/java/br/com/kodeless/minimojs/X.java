@@ -171,7 +171,7 @@ public class X {
     }
 
     public static String getContextPath() {
-        return contextPath;
+        return contextPath != null && !contextPath.trim().equals("") ? "/" + contextPath : "";
     }
 
     public static String getRealPath(String path) throws IOException {
