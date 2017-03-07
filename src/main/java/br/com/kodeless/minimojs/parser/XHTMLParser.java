@@ -1,16 +1,11 @@
 package br.com.kodeless.minimojs.parser;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import br.com.kodeless.minimojs.XFileUtil;
 import br.com.kodeless.minimojs.XJS;
+
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class XHTMLParser {
 
@@ -325,6 +320,22 @@ public class XHTMLParser {
                 e.getValue().setElementId(elementId);
             }
             boundModals.putAll(modalBindMap);
+        }
+        prepareElementsWithSource(element);
+    }
+
+    private void prepareElementsWithSource(XElement element) {
+        if (element.getName().toUpperCase().equals("SCRIPT")) {
+            String src = element.getAttribute("src");
+            if (src != null && src.startsWith("/")) {
+                element.setAttribute("src", "{webctx}" + src);
+            }
+        }
+        if (element.getName().toUpperCase().equals("A")) {
+            String href = element.getAttribute("href");
+            if (href != null && href.startsWith("/")) {
+                element.setAttribute("href", "{webctx}" + href);
+            }
         }
     }
 
