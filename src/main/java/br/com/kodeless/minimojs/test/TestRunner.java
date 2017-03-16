@@ -41,16 +41,15 @@ public class TestRunner {
         }
     }
 
-    public void execTest(Integer portValue, String testToRun, String sourcePath, Map<String, List<String>> tests, String contextPath) {
+    public void execTest(String testToRun, Map<String, List<String>> tests, String basePath) {
         int[] errorCount = {0};
-        int port = portValue != null ? portValue : 80;
         StringBuffer sb = new StringBuffer();
         try {
             startDriver();
 
             if (testToRun == null || testToRun.trim().equals("/") || testToRun.trim().equals("")) {
                 for (Map.Entry<String, List<String>> e : tests.entrySet()) {
-                    exec(sb, errorCount, e.getKey(), e.getValue(), port, contextPath);
+                    exec(sb, errorCount, e.getKey(), e.getValue(), basePath);
                 }
             } else {
                 List<String> testList = tests.get(testToRun);
@@ -58,7 +57,7 @@ public class TestRunner {
                     errorCount[0]++;
                     sb.append("Test group not found");
                 } else {
-                    exec(sb, errorCount, testToRun, testList, port, contextPath);
+                    exec(sb, errorCount, testToRun, testList, basePath);
                 }
             }
         } finally {
@@ -84,11 +83,11 @@ public class TestRunner {
         }
     }
 
-    private void exec(StringBuffer sb, int[] errorCount, String path, List<String> testList, int port, String contextPath) {
+    private void exec(StringBuffer sb, int[] errorCount, String path, List<String> testList, String basePath) {
         sb.append(path);
         for (String test : testList) {
             sb.append("\n    ").append(path).append("/").append(test).append(": ");
-            String result = runTest(path, test, port, contextPath);
+            String result = runTest(path, test, basePath);
             if (result == null) {
                 sb.append(" not configured");
             } else if (result.equals("Success")) {
@@ -101,14 +100,20 @@ public class TestRunner {
         sb.append("\n");
     }
 
-    private String runTest(String path, String test, int port, String contextPath) {
-        contextPath = contextPath == null || contextPath.trim().equals("") ? "" : "/" + contextPath;
-        System.out.println("Running test: " + contextPath + path + "/" + test);
+    private String runTest(String path, String test, String basePath) {
+        basePath = basePath == null || basePath.trim().equals("") ? "http://localhost:8080" : basePath;
+
+        System.out.println("Running test: " + basePath + path + "/" + test);
         try {
-            driver.get("http://localhost:" + port + contextPath + path + "/" + test + ".html");
+            String url = (basePath + path + "/" + test + ".html").replace("//", "/");
+            if (url.startsWith("/")) {
+                //local url
+                url = "file://" + url;
+            }
+            driver.get(url);
         } catch (Exception e) {
             e.printStackTrace();
-            return "Error in test " + contextPath + path + "/" + test + ": " + e.getMessage();
+            return "Error in test " + basePath + path + "/" + test + ": " + e.getMessage();
         }
         String title = driver.getTitle();
         if (title.endsWith("Server Error")) {
@@ -360,13 +365,9 @@ public class TestRunner {
             }
         } while (!exists);
 
-        System.out.println("What is the context path of the running project? ");
-        String contextPath = sc.nextLine();
+        System.out.println("What is the base path of the running project (ex: http://localhost:9090/ctx or /Users/Vader/project) ? ");
+        String basePath = sc.nextLine();
 
-
-        System.out.println("What is the port where the compiled project is running? ");
-        int port = sc.nextInt();
-        sc.nextLine();
 
         TestRunner runner = new TestRunner();
 
@@ -395,7 +396,7 @@ public class TestRunner {
                     continue;
                 }
             }
-            runner.execTest(port, testByIndex.get(index), sourcePath, tests, contextPath);
+            runner.execTest(testByIndex.get(index), tests, basePath);
             System.out.println("Hit enter to continue or q to quit");
             String next = sc.nextLine();
             if (next.equals("q")) {

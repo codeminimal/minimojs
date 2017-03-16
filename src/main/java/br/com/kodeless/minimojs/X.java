@@ -23,7 +23,7 @@ public class X {
     private static Properties properties;
     private static ResourceLoader resourceLoader;
     private static String contextPath;
-    private static String defaultTemplateName;
+    private static boolean usingLocalFolder;
     private static boolean runningInServletContainer;
 
 
@@ -50,6 +50,7 @@ public class X {
             System.out.println("This must be executed in the root folder where the sources are. There must be a X.properties on this folder");
             System.out.println("-c\tApplication context path. Ex: http://localhost:8080/contextpath/startpath");
             System.out.println("-d\tDestination folder of the compiled sources");
+            System.out.println("-l\tLocal folder path. In this case the context path doesn't need to be informed. This will be accessed with file://");
             System.exit(0);
         }
         final String currentPath = System.getProperty("user.dir");
@@ -88,17 +89,29 @@ public class X {
             }
         };
 
-        try {
-            config(getArg("-c", args, ""), new FileInputStream(currentPath + "/X.properties"), rl);
-        } catch (IOException e) {
-            System.err.println("No X.properties file found");
-            System.exit(-1);
-        }
 
-        String destFolderStr = getArg("-d", args, null);
+        String destFolderStr = getArg("-l", args, null);
+
         if (destFolderStr == null) {
-            System.err.println("Destination folder must be passed as parameter");
-            System.exit(-1);
+            try {
+                config(getArg("-c", args, ""), new FileInputStream(currentPath + "/X.properties"), rl);
+            } catch (IOException e) {
+                System.err.println("No X.properties file found");
+                System.exit(-1);
+            }
+            destFolderStr = getArg("-d", args, null);
+            if (destFolderStr == null) {
+                System.err.println("Destination folder must be passed as parameter");
+                System.exit(-1);
+            }
+        } else {
+            usingLocalFolder = true;
+            try {
+                config(destFolderStr, new FileInputStream(currentPath + "/X.properties"), rl);
+            } catch (IOException e) {
+                System.err.println("No X.properties file found");
+                System.exit(-1);
+            }
         }
         File destFolder = new File(destFolderStr);
         if (!destFolder.exists()) {
@@ -171,7 +184,7 @@ public class X {
     }
 
     public static String getContextPath() {
-        return contextPath != null && !contextPath.trim().equals("") ? "/" + contextPath : "";
+        return contextPath != null && !contextPath.trim().equals("") ? (usingLocalFolder ? "" : "/") + contextPath : "";
     }
 
     public static String getRealPath(String path) throws IOException {

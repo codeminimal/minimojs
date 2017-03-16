@@ -100,11 +100,17 @@ function _spaModal(gotoUrl, skipUpdateState){
 	var goto = _parseUrl(gotoUrl);
 	if(!goto.tpl || !current.tpl || goto.tpl != current.tpl){
 	    //incompatible window (not the same tamplate, or no template at all)
-        //window.location = goto.path + goto.query;
+        window.location = goto.path + goto.query;
 	}else{
 	    var tempNode = document.createElement('div');
 	    if(!skipUpdateState){
-	        history.pushState(null, null, "%ctx%" + goto.path + goto.query);
+	        var newPath = "%ctx%" + goto.path + goto.query;
+	        if(xutil.isRunningOnFileProtocol()){
+                //running locally push state is disable
+                xutil.setQueryParams(newPath);
+            }else{
+	            history.pushState(null, null, newPath);
+	        }
 	        X$._lastUrl = X$._currentUrl;
             X$._currentUrl = window.location.toString();
 	    }

@@ -39,10 +39,32 @@ function deleteValueFromSession(key){
 		sessionStorage.removeItem(window.xuser.id + '|' + key);
 	}
 }
-
+function setQueryParams(path){
+    var qp = null;
+    var index = path.indexOf('?');
+    if(index > 0){
+        qp = path.substring(index);
+    }
+    sessionStorage.setItem('__x_internal_qp', qp);
+}
 function getQueryParams(){
+    var search;
+    if(isRunningOnFileProtocol()){
+        search = sessionStorage.getItem('__x_internal_qp');
+        sessionStorage.removeItem('__x_internal_qp');
+    }else{
+        search = location.search;
+    }
+    return parseQueryParams(search);
+}
+
+function isRunningOnFileProtocol(){
+    return location.origin == 'file://';
+}
+
+function parseQueryParams(search){
     var m = {};
-    var pairs = location.search.substring(1).split("&");
+    var pairs = (search||"").substring(1).split("&");
     for(var i = 0; i < pairs.length; i++){
         var kv = pairs[i].split('=');
         if(kv.length == 2){
@@ -355,8 +377,10 @@ _expose(clone);
 _expose(_atob);
 _expose(_btoa);
 _expose(highestZIndex);
-_external(getQueryParams);
 _external(equals);
 _external(putValueOnSession);
 _external(getValueFromSession);
 _external(deleteValueFromSession)
+_expose(setQueryParams);
+_expose(getQueryParams);
+_expose(isRunningOnFileProtocol);
