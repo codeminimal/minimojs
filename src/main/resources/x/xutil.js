@@ -347,8 +347,11 @@ function equals(o1, o2){
     return false;
 }
 
+function getCtx(){
+    return "%ctx%";
+}
 
-
+_expose(getCtx);
 _external(setCookie);
 _external(getCookie);
 _expose(removeFromArray);

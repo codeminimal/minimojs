@@ -643,7 +643,7 @@ function _createHTML(json, insertPoint, index, onFinish, compCtxSuffix){
 				if(scoped){
 					e = createElement("style");
 					setAtt(e, "scoped", true);
-					e.innerHTML = "@import url(%ctx%/res/" + rq + ");";
+					e.innerHTML = "@import url(" + xutil.getCtx() + "/res/" + rq + ");";
 					insertPoint.appendChild(e);
 					_createHTML(json, insertPoint, index+1, onFinish, compCtxSuffix);
 					return;
@@ -651,7 +651,7 @@ function _createHTML(json, insertPoint, index, onFinish, compCtxSuffix){
 					e = createElement("link");
 					setAtt(e, "rel", "stylesheet");
 					setAtt(e, "type", "text/css");
-					setAtt(e, "href", "%ctx%/res/" + rq);
+					setAtt(e, "href",  xutil.getCtx() + "/res/" + rq);
 					e.onload = function(){
 						_createHTML(json, insertPoint, index+1, onFinish, compCtxSuffix);
 					}
@@ -659,7 +659,7 @@ function _createHTML(json, insertPoint, index, onFinish, compCtxSuffix){
 			}else{
 				//js
 				e = createElement("script");
-				setAtt(e, "src", "%ctx%/res/" + rq);
+				setAtt(e, "src", xutil.getCtx() + "/res/" + rq);
 				e.onload = function(){
 					_checkHoldJQuery();
 					_createHTML(json, insertPoint, index+1, onFinish, compCtxSuffix);

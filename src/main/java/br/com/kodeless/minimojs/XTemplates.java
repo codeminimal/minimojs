@@ -1,12 +1,10 @@
 package br.com.kodeless.minimojs;
 
+import javax.script.ScriptException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
-
-import javax.script.ScriptException;
-import javax.servlet.ServletContext;
 
 public class XTemplates {
 
@@ -110,7 +108,7 @@ public class XTemplates {
     }
 
     public static String replaceVars(String strResponse) {
-        return strResponse.replaceAll("\\{webctx\\}", X.getContextPath());
+        return strResponse.replace("{webctx}", X.getContextPath());
     }
 
     protected static String preparePopupModalTemplates(String popupModalTemplates)

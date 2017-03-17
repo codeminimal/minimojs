@@ -47,7 +47,7 @@ public enum XScriptManager {
         mainScript = replaceAllStrings(mainScript, "%defaulttimeformat%", defaultTimeFormat);
 
         logger.debug("Initializing js scripts...");
-        mainScript = mainScript.replaceAll("%meta%", metaClasses).replaceAll("%ctx%", X.getContextPath());
+        mainScript = mainScript.replace("%meta%", metaClasses).replace("%ctx%", X.getContextPath());
         mainScript = mainScript.replace("%servletMode%", X.isRunningInServletContainer() + "");
 
         String currencyFormatter = "";

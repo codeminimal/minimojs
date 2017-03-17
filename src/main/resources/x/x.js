@@ -141,7 +141,7 @@ var X$ = X$ || new function(){
     				+ "px; left: " + left + "px; top: " + top + "px;'";
 
     		var html = '<img ' + style
-    				+ ' src="%ctx%/x/loader.gif"/>';
+    				+ ' src="' + xutil.getCtx() + '/x/loader.gif"/>';
 
     		dv.innerHTML = html;
     		document.body.appendChild(dv);
@@ -510,7 +510,7 @@ var _XClass = function(parent) {
 		if(!X$.getJsCallbacks[resName]){
 			X$.getJsCallbacks[resName] = [];
 			var scr = xdom.createElement("script");
-			xdom.setAtt(scr, "src", "%ctx%" + resName);
+			xdom.setAtt(scr, "src", xutil.getCtx() + resName);
 			document.body.appendChild(scr);
 		}
 		//TODO it is temporary. Will be replaced by app.cache
@@ -546,7 +546,7 @@ var _XClass = function(parent) {
 		thisX.debug("xstartup", "XObj showing screen");
 		try {
 			thisX.debug("xstartup", "XObj calling before show page");
-			thisX.eval('if(X.beforeShowPage){X.beforeShowPage("' + window.location.pathname.substring("%ctx%".length) + '");}');
+			thisX.eval('if(X.beforeShowPage){X.beforeShowPage("' + window.location.pathname.substring(xutil.getCtx().length) + '");}');
 		} catch (e) {
 			xlog.error("xstartup", "XObj error calling init");
 			throw e;

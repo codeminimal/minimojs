@@ -84,7 +84,7 @@ function setSpaModalNode(insertPoint){
 function _parseUrl(url){
     var qmIndex = url.indexOf('?');
     var path = qmIndex >= 0 ? url.substring(0, qmIndex) : url;
-    path = path.substring('%ctx%'.length);
+    path = path.substring(xutil.getCtx().length);
     return {
         path: path,
         query: qmIndex >= 0 ? url.substring(qmIndex) : '',
@@ -104,7 +104,7 @@ function _spaModal(gotoUrl, skipUpdateState){
 	}else{
 	    var tempNode = document.createElement('div');
 	    if(!skipUpdateState){
-	        var newPath = "%ctx%" + goto.path + goto.query;
+	        var newPath = xutil.getCtx() + goto.path + goto.query;
 	        if(xutil.isRunningOnFileProtocol()){
                 //running locally push state is disable
                 xutil.setQueryParams(newPath);

@@ -54,7 +54,7 @@ public final class XClassFinder {
 
 	private final static List<Class<?>> find(final File file, final String scannedPackage) {
 		final List<Class<?>> classes = new LinkedList<Class<?>>();
-		int index = file.getAbsolutePath().lastIndexOf(scannedPackage.replaceAll("\\.", "/"));
+		int index = file.getAbsolutePath().lastIndexOf(scannedPackage.replace(".", "/"));
 		final String resource = file.getAbsolutePath().substring(index);
 		if (file.isDirectory()) {
 			for (File nestedFile : file.listFiles()) {
@@ -63,7 +63,7 @@ public final class XClassFinder {
 		} else if (resource.endsWith(CLASS_SUFFIX)) {
 			final int beginIndex = 0;
 			final int endIndex = resource.length() - CLASS_SUFFIX.length();
-			final String className = resource.substring(beginIndex, endIndex).replaceAll("/", ".");
+			final String className = resource.substring(beginIndex, endIndex).replace("/", ".");
 			try {
 				classes.add(Class.forName(className));
 			} catch (ClassNotFoundException ignore) {

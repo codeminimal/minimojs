@@ -91,10 +91,11 @@ public class X {
 
 
         String destFolderStr = getArg("-l", args, null);
+        String context = getArg("-c", args, "");
 
         if (destFolderStr == null) {
             try {
-                config(getArg("-c", args, ""), new FileInputStream(currentPath + "/X.properties"), rl);
+                config(context, new FileInputStream(currentPath + "/X.properties"), rl);
             } catch (IOException e) {
                 System.err.println("No X.properties file found");
                 System.exit(-1);
@@ -107,7 +108,10 @@ public class X {
         } else {
             usingLocalFolder = true;
             try {
-                config(destFolderStr, new FileInputStream(currentPath + "/X.properties"), rl);
+                if (context.equals("")) {
+                    context = destFolderStr;
+                }
+                config(context, new FileInputStream(currentPath + "/X.properties"), rl);
             } catch (IOException e) {
                 System.err.println("No X.properties file found");
                 System.exit(-1);

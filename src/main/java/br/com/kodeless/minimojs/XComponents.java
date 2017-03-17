@@ -112,7 +112,7 @@ public class XComponents {
         }
         array += "];";
         sb.insert(0, array);
-        String result = sb.toString().replaceAll("\\{webctx\\}", X.getContextPath());
+        String result = sb.toString().replace("{webctx}", X.getContextPath());
         XJS.prepareComponents("var components = {};" + serverJSComponents);
         return result;
     }

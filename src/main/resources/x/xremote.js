@@ -208,7 +208,7 @@ function _createRemoteFunction(alias, method, responseInOutputStream){
 function ping(onSuccess, onError){
 	ajax({
 		type : "get",
-		url : "%ctx%/x/_x_ping?_x_nocache=" + xutil.generateId(),
+		url :  xutil.getCtx() + "/x/_x_ping?_x_nocache=" + xutil.generateId(),
 		async : true,
 		success : onSuccess || function(){xlog.debug("_x_internal", "ping")},
 		error : onError || function(e){xlog.error("ping error: " + e.message, e)}
@@ -314,7 +314,7 @@ function _callAjaxGET(purl, success, exception) {
         resolve = rs;
         reject = rj;
     });
-	var url = "%ctx%/x/" + purl;
+	var url = xutil.getCtx() + "/x/" + purl;
 	ajax({
 		type : "get",
 		url : url,
@@ -334,7 +334,7 @@ function _callSyncAjaxGET(purl, success, exception) {
         resolve = rs;
         reject = rj;
     });
-	var url = "%ctx%/x/" + purl;
+	var url = xutil.getCtx() + "/x/" + purl;
 	ajax({
 		type : "get",
 		url : url,
@@ -351,7 +351,7 @@ function _callAjaxPOST(url, param, success, exception) {
     });
 	ajax({
 		type : "POST",
-		url : "%ctx%/x/" + url,
+		url : xutil.getCtx() + "/x/" + url,
 		data : param,
 		async : true,
 		dataType : "html",
@@ -368,7 +368,7 @@ function _callSyncAjaxPOST(url, param, success, exception) {
     });
 	ajax({
 		type : "POST",
-		url : "%ctx%/x/" + url,
+		url : xutil.getCtx() + "/x/" + url,
 		data : param,
 		async : false,
 		dataType : "html",
@@ -414,7 +414,7 @@ function ajax(param){
 
 //get html for a modal
 function getHtmlPage(url, callback){
-	var _url = "%ctx%" + url + "?_xmd=true";
+	var _url = xutil.getCtx() + url + "?_xmd=true";
 	ajax({
 		type : "get",
 		url : _url,
@@ -460,7 +460,7 @@ function prepareForUpload(id){
 var _callbackUpload = null;
 //submits the upload
 function _upload(url, parameters, callback, onException) {
-	xdom.setAtt(_formUpload, "action", "%ctx%/x/" + url + "?" + parameters);
+	xdom.setAtt(_formUpload, "action", xutil.getCtx() + "/x/" + url + "?" + parameters);
 	_callbackUpload = _onCallback(callback, onException, url);
 	_formUpload.submit();
 	_formUpload = null;
