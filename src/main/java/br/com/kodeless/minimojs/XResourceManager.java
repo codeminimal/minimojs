@@ -217,12 +217,14 @@ public enum XResourceManager {
         } catch (IOException e) {
             throw new RuntimeException("Error reloading x.js", e);
         }
-        try {
-            XFileUtil.instance.writeFile(baseDestPath + "/x/scripts/x.js", XScriptManager.instance.getScript().getBytes());
-            XFileUtil.instance.writeFile(baseDestPath + "/x/loader.gif", XTemplates.loaderImg(X.getProperty("loader.img.path")));
-            XFileUtil.instance.writeFile(baseDestPath + "/x/_appcache", XResourceManager.instance.getAppCache().getBytes());
-        } catch (IOException e) {
-            throw new RuntimeException("Error writing scripts to dest folder", e);
+        if (!X.isRunningInServletContainer()) {
+            try {
+                XFileUtil.instance.writeFile(baseDestPath + "/x/scripts/x.js", XScriptManager.instance.getScript().getBytes());
+                XFileUtil.instance.writeFile(baseDestPath + "/x/loader.gif", XTemplates.loaderImg(X.getProperty("loader.img.path")));
+                XFileUtil.instance.writeFile(baseDestPath + "/x/_appcache", XResourceManager.instance.getAppCache().getBytes());
+            } catch (IOException e) {
+                throw new RuntimeException("Error writing scripts to dest folder", e);
+            }
         }
     }
 
