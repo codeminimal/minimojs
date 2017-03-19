@@ -7,7 +7,6 @@ import org.apache.log4j.Logger;
 
 import javax.script.ScriptException;
 import java.io.File;
-import java.io.FileFilter;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.file.*;
@@ -93,6 +92,7 @@ public enum XResourceManager {
         startWatchService();
         allResources = new HashSet<String>();
         collectAllResources();
+        reloadCommonResources();
     }
 
     private void collectAllResources() {
@@ -110,13 +110,21 @@ public enum XResourceManager {
     }
 
     private List<File> getAllFiles(File dir) {
+        return getFiles(dir, true);
+    }
+
+    private List<File> getFiles(File dir, boolean addOnlyFiles) {
         List<File> result = new ArrayList<File>();
         File[] fileArray = dir.listFiles();
         if (fileArray != null) {
             for (File file : fileArray) {
                 if (file.isDirectory()) {
-                    result.addAll(getAllFiles(file));
-                } else {
+                    result.addAll(getFiles(file, addOnlyFiles));
+                    if (!addOnlyFiles) {
+                        result.add(file);
+                    }
+                }
+                if (addOnlyFiles && !file.isDirectory()) {
                     result.add(file);
                 }
             }
@@ -124,60 +132,50 @@ public enum XResourceManager {
         return result;
     }
 
-
     //watch changes in pages folder
     private void startWatchService() throws IOException {
-        List<String> dirs = getDirs();
-        for (String dirName : dirs) {
-            final String baseDir = dirName;
-            Path dir = Paths.get(dirName);
-            final WatchService watcher = FileSystems.getDefault().newWatchService();
-            if (!XContext.isDevMode()) {
-                dir.register(watcher, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_DELETE, StandardWatchEventKinds.ENTRY_MODIFY);
+        final WatchService watcher = FileSystems.getDefault().newWatchService();
+        Map<WatchKey, Path> keys = new HashMap<WatchKey, Path>();
+        List<File> files = getFiles(new File(this.basePagesPath), false);
+
+        for (File file : files) {
+            Path dir = Paths.get(file.getAbsolutePath());
+            WatchKey key;
+            if (XContext.isDevMode()) {
+                key = dir.register(watcher, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_DELETE);
             } else {
-                dir.register(watcher, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_DELETE);
+                key = dir.register(watcher, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_DELETE, StandardWatchEventKinds.ENTRY_MODIFY);
             }
-            Thread watcherThread = new Thread() {
-                @Override
-                public void run() {
-                    while (true) {
-                        String jsonResourceInfo = new Gson().toJson(XResourceManager.instance.getImportableResourceInfo());
-                        try {
-                            XScriptManager.instance.reload(XObjectsManager.instance.getScriptMetaClasses(), jsonResourceInfo);
-                        } catch (IOException e) {
-                            throw new RuntimeException("Error reloading x.js", e);
-                        }
-                        try {
-                            XFileUtil.instance.writeFile(baseDestPath + "/x/scripts/x.js", XScriptManager.instance.getScript().getBytes());
-                            XFileUtil.instance.writeFile(baseDestPath + "/x/loader.gif", XTemplates.loaderImg(X.getProperty("loader.img.path")));
-                            XFileUtil.instance.writeFile(baseDestPath + "/x/_appcache", XResourceManager.instance.getAppCache().getBytes());
-                        } catch (IOException e) {
-                            throw new RuntimeException("Error writing scripts to dest folder", e);
-                        }
-                        WatchKey key;
-                        try {
-                            // wait for a key to be available
-                            key = watcher.take();
-                        } catch (InterruptedException ex) {
-                            return;
-                        }
+            keys.put(key, dir);
+        }
 
-                        for (WatchEvent<?> event : key.pollEvents()) {
-                            // get event type
-                            WatchEvent.Kind<?> kind = event.kind();
+        Thread watcherThread = new Thread() {
+            @Override
+            public void run() {
+                while (true) {
+                    WatchKey key = null;
+                    try {
+                        // wait for a key to be available
+                        key = watcher.take();
+                    } catch (InterruptedException ex) {
+                        ex.printStackTrace();
+                        continue;
+                    }
+                    for (WatchEvent<?> event : key.pollEvents()) {
+                        // get event type
+                        WatchEvent.Kind<?> kind = event.kind();
+                        Path path = keys.get(key);
+                        @SuppressWarnings("unchecked")
+                        WatchEvent<Path> ev = (WatchEvent<Path>) event;
+                        Path fileName = ev.context();
 
-                            // get file name
-                            @SuppressWarnings("unchecked")
-                            WatchEvent<Path> ev = (WatchEvent<Path>) event;
-                            Path fileName = ev.context();
-
+                        if (kind == StandardWatchEventKinds.OVERFLOW) {
+                            continue;
+                        } else if (kind == StandardWatchEventKinds.ENTRY_CREATE || kind == StandardWatchEventKinds.ENTRY_MODIFY) {
                             logger.info("The file " + fileName + " was changed. Reloading...");
-
-                            if (kind == StandardWatchEventKinds.OVERFLOW) {
-                                continue;
-                            } else if (kind == StandardWatchEventKinds.ENTRY_CREATE || kind == StandardWatchEventKinds.ENTRY_MODIFY) {
-                                String fileNameString = baseDir + "/" + fileName.toString();
-                                File file = new File(fileNameString);
+                            String fileNameString = path.toString() + "/" + fileName.toString();
+                            File file = new File(fileNameString);
+                            if (!file.isDirectory()) {
                                 try {
                                     File htmxFile = file;
                                     if (fileNameString.endsWith(".js")) {
@@ -191,48 +189,41 @@ public enum XResourceManager {
                                     }
                                     //regenerate app cache
                                     generateAppCacheFile();
+                                    reloadCommonResources();
                                 } catch (Exception e) {
                                     logger.error("ERROR loading resource " + fileNameString, e);
                                 }
-
-                            } else if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
-
-                                // TODO this process of reloading must be improved
                             }
+                        } else if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
+
+                            // TODO this process of reloading must be improved
                         }
-
-                        // IMPORTANT: The key must be reset after processed
-                        key.reset();
                     }
+                    // IMPORTANT: The key must be reset after processed
+                    key.reset();
                 }
-            };
-            watcherThread.setDaemon(true);
-            watcherThread.start();
-        }
-
-
-    }
-
-    private List<String> getDirs() {
-        File dir = new File(this.basePagesPath);
-        List<String> result = getSubDirList(dir);
-        result.add(this.basePagesPath);
-        return result;
-    }
-
-    private List<String> getSubDirList(File dir) {
-        File[] files = dir.listFiles(new FileFilter() {
-            @Override
-            public boolean accept(File pathname) {
-                return pathname.isDirectory();
             }
-        });
-        List<String> result = new ArrayList<String>();
-        for (File subdir : files) {
-            result.add(subdir.getAbsolutePath());
-            result.addAll(getSubDirList(subdir));
+        };
+        watcherThread.setDaemon(true);
+        watcherThread.start();
+
+
+    }
+
+    private void reloadCommonResources() {
+        String jsonResourceInfo = new Gson().toJson(XResourceManager.instance.getImportableResourceInfo());
+        try {
+            XScriptManager.instance.reload(XObjectsManager.instance.getScriptMetaClasses(), jsonResourceInfo);
+        } catch (IOException e) {
+            throw new RuntimeException("Error reloading x.js", e);
         }
-        return result;
+        try {
+            XFileUtil.instance.writeFile(baseDestPath + "/x/scripts/x.js", XScriptManager.instance.getScript().getBytes());
+            XFileUtil.instance.writeFile(baseDestPath + "/x/loader.gif", XTemplates.loaderImg(X.getProperty("loader.img.path")));
+            XFileUtil.instance.writeFile(baseDestPath + "/x/_appcache", XResourceManager.instance.getAppCache().getBytes());
+        } catch (IOException e) {
+            throw new RuntimeException("Error writing scripts to dest folder", e);
+        }
     }
 
     private void generateAppCacheFile() {
@@ -551,7 +542,7 @@ public enum XResourceManager {
                     addPath(modalPathsDeclared, modal.getPath(), resInfo.getRealPath());
                 }
             }
-            page = strResponse.getBytes("UTF-8");
+            page = strResponse.replace("{webctx}", X.getContextPath()).getBytes("UTF-8");
             return page;
         }
         return null;
@@ -796,8 +787,12 @@ public enum XResourceManager {
                 if (isJS) {
                     if (isDir) {
                         result.implicit = true;
-                        result.loggedRedirect = noExtensionPath + "/index.js";
-                        result.unloggedRedirect = noExtensionPath + "/_index.js";
+                        File index = new File(X.getRealPath("/pages" + noExtensionPath + "/_index.js"));
+                        if (index.exists()) {
+                            result.redirect = noExtensionPath + "/_index.js";
+                        } else {
+                            result.redirect = noExtensionPath + "/index.js";
+                        }
                     } else {
                         result.relativePath = "/pages" + noExtensionPath + ".js";
                         HtmxResource htmx = (HtmxResource) getResourceInfo(noExtensionPath);
@@ -814,8 +809,12 @@ public enum XResourceManager {
                     result = new HtmxResource();
                     if (isDir) {
                         result.implicit = true;
-                        result.loggedRedirect = noExtensionPath + "/index";
-                        result.unloggedRedirect = noExtensionPath + "/_index";
+                        File index = new File(X.getRealPath("/pages" + noExtensionPath + "/_index.htmx"));
+                        if (index.exists()) {
+                            result.redirect = noExtensionPath + "/_index";
+                        } else {
+                            result.redirect = noExtensionPath + "/index";
+                        }
                     } else {
                         result.relativePath = "/pages" + noExtensionPath + ".htmx";
                         result.realPath = X.getRealPath(result.relativePath);
@@ -858,8 +857,7 @@ public enum XResourceManager {
         private boolean implicit;//the name is index
         private boolean needsLogin;
         private String path;
-        private String loggedRedirect;
-        private String unloggedRedirect;
+        private String redirect;
         private String realPath;
         private String relativePath;
         private XAuthManager.AuthProperties authProperties;
@@ -873,12 +871,8 @@ public enum XResourceManager {
             return path;
         }
 
-        public String getLoggedRedirect() {
-            return loggedRedirect;
-        }
-
-        public String getUnloggedRedirect() {
-            return unloggedRedirect;
+        public String getRedirect() {
+            return redirect;
         }
 
         public String getRealPath() {

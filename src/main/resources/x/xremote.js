@@ -3,8 +3,7 @@ var metaObj = %meta%;
 //import remote script
 function importScript(jsName, insertPoint, callback, parentX, isSpa){
 	xlog.debug("ximport", "Importing script " + jsName);
-	var X = new _XClass(parentX);
-	X.isSpa = isSpa;
+	var X = new _XClass(parentX, isSpa);
 	X._getJS(jsName, insertPoint, callback);
 }
 

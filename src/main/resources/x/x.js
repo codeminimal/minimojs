@@ -141,7 +141,7 @@ var X$ = X$ || new function(){
     				+ "px; left: " + left + "px; top: " + top + "px;'";
 
     		var html = '<img ' + style
-    				+ ' src="' + xutil.getCtx() + '/x/loader.gif"/>';
+    				+ ' src="%ctx%/x/loader.gif"/>';
 
     		dv.innerHTML = html;
     		document.body.appendChild(dv);
@@ -381,10 +381,13 @@ var X$ = X$ || new function(){
 	};
 }
 
-var _XClass = function(parent) {
+var _XClass = function(parent, isSpa) {
+    this.isSpa = isSpa;
 	if(parent){
 		this.CTX = parent.CTX;
 		this.controllerCtx = parent.controllerCtx || parent;
+	}else if(isSpa){
+	    this.CTX = '_x_mainSpa';
 	}else{
 		this.CTX = 'main';
 	}

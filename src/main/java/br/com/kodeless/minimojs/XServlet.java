@@ -1,18 +1,7 @@
 package br.com.kodeless.minimojs;
 
-import java.io.*;
-import java.lang.reflect.InvocationTargetException;
-import java.net.URLDecoder;
-import java.util.*;
-
-import javax.script.ScriptException;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import br.com.kodeless.minimojs.model.XUser;
+import br.com.kodeless.minimojs.parser.XHTMLParsingException;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUploadException;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
@@ -21,7 +10,16 @@ import org.apache.log4j.Logger;
 import org.hibernate.Transaction;
 import org.hibernate.classic.Session;
 
-import br.com.kodeless.minimojs.parser.XHTMLParsingException;
+import javax.script.ScriptException;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.*;
+import java.lang.reflect.InvocationTargetException;
+import java.net.URLDecoder;
+import java.util.*;
 
 public class XServlet extends HttpServlet {
 
@@ -222,7 +220,7 @@ public class XServlet extends HttpServlet {
         }
         if (resInfo.isImplicit()) {
             // is dir. Checking possibility to redirect
-            resp.sendRedirect(user != null && resInfo.getLoggedRedirect() != null ? resInfo.getLoggedRedirect() : resInfo.getUnloggedRedirect());
+            resp.sendRedirect(resInfo.getRedirect());
             return;
         }
 
