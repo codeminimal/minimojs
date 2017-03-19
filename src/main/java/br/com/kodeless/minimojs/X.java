@@ -1,7 +1,6 @@
 package br.com.kodeless.minimojs;
 
 import br.com.kodeless.minimojs.parser.XHTMLParsingException;
-import com.google.gson.Gson;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
@@ -142,9 +141,12 @@ public class X {
             e.printStackTrace();
             System.exit(-1);
         }
-        XFileUtil.instance.writeFile(destFolderStr + "/x/scripts/x.js", XScriptManager.instance.getScript().getBytes());
-        XFileUtil.instance.writeFile(destFolderStr + "/x/loader.gif", XTemplates.loaderImg(X.getProperty("loader.img.path")));
-        XFileUtil.instance.writeFile(destFolderStr + "/x/_appcache", XResourceManager.instance.getAppCache().getBytes());
+        while (true) {
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e) {
+            }
+        }
     }
 
     private static String getArg(String name, String[] args, String defaultValue) {
@@ -212,13 +214,10 @@ public class X {
 
         XComponents.loadComponents();
 
+        XObjectsManager.instance.init();
+
         XResourceManager.instance.init(baseDestPath);
 
-        String jsonResourceInfo = new Gson().toJson(XResourceManager.instance.getImportableResourceInfo());
-
-        XObjectsManager.instance.init();
-        //create x script
-        XScriptManager.instance.reload(XObjectsManager.instance.getScriptMetaClasses(), jsonResourceInfo);
     }
 
     public static boolean isRunningInServletContainer() {

@@ -141,6 +141,19 @@ public enum XResourceManager {
                 @Override
                 public void run() {
                     while (true) {
+                        String jsonResourceInfo = new Gson().toJson(XResourceManager.instance.getImportableResourceInfo());
+                        try {
+                            XScriptManager.instance.reload(XObjectsManager.instance.getScriptMetaClasses(), jsonResourceInfo);
+                        } catch (IOException e) {
+                            throw new RuntimeException("Error reloading x.js", e);
+                        }
+                        try {
+                            XFileUtil.instance.writeFile(baseDestPath + "/x/scripts/x.js", XScriptManager.instance.getScript().getBytes());
+                            XFileUtil.instance.writeFile(baseDestPath + "/x/loader.gif", XTemplates.loaderImg(X.getProperty("loader.img.path")));
+                            XFileUtil.instance.writeFile(baseDestPath + "/x/_appcache", XResourceManager.instance.getAppCache().getBytes());
+                        } catch (IOException e) {
+                            throw new RuntimeException("Error writing scripts to dest folder", e);
+                        }
                         WatchKey key;
                         try {
                             // wait for a key to be available
@@ -178,8 +191,6 @@ public enum XResourceManager {
                                     }
                                     //regenerate app cache
                                     generateAppCacheFile();
-                                    String jsonResourceInfo = new Gson().toJson(XResourceManager.instance.getImportableResourceInfo());
-                                    XScriptManager.instance.reload(XObjectsManager.instance.getScriptMetaClasses(), jsonResourceInfo);
                                 } catch (Exception e) {
                                     logger.error("ERROR loading resource " + fileNameString, e);
                                 }
