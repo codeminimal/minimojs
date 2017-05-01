@@ -29,10 +29,11 @@ var X$ = X$ || new function(){
 	var newNodes =[];
 	//check if the added nodes already have parent
 	function checkAddedNodes(){
+	    console.log("checking changed nodes " + newNodes.length);
 	    for(var i = 0; i < newNodes.length; i++){
             var el = newNodes[i];
+            newNodes.splice(i--, 1);
             if(el._xcreated){
-                newNodes.splice(i--, 1);
                 continue;
             }
             var x;
@@ -45,8 +46,6 @@ var X$ = X$ || new function(){
             if(!x){
                 continue;
             }
-            newNodes.splice(i--, 1);
-
             var lName = el.nodeName.toLowerCase();
             if(!el._xsetAttribute){
                 el._xsetAttribute = el.setAttribute;

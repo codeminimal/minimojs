@@ -355,19 +355,25 @@ public class TestRunner {
     public static void main(String[] a) {
         Scanner sc = new Scanner(System.in);
         String sourcePath = null;
-        boolean exists;
-        do {
+        String basePath;
+        if (a.length > 0) {
+            sourcePath = a[0];
+            basePath = a[1];
+        } else {
             System.out.println("What is the source (uncompiled) path? ");
             sourcePath = sc.nextLine();
+
+            System.out.println("What is the base path of the running project (ex: http://localhost:9090/ctx or /Users/Vader/project) ? ");
+            basePath = sc.nextLine();
+        }
+
+        boolean exists;
+        do {
             exists = new File(sourcePath).exists();
             if (!exists) {
-                System.out.println("Invalid path");
+                System.out.println("Invalid source path");
             }
         } while (!exists);
-
-        System.out.println("What is the base path of the running project (ex: http://localhost:9090/ctx or /Users/Vader/project) ? ");
-        String basePath = sc.nextLine();
-
 
         TestRunner runner = new TestRunner();
 

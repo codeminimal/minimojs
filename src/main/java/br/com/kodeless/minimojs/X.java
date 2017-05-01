@@ -32,8 +32,11 @@ public class X {
             public boolean onPrintln(String msg) {
                 if (msg.startsWith("log4j:WARN No appenders could be found for logger")) {
                     Configurator configurator = new PropertyConfigurator();
-                    URL url = Loader.getResource("log4j_alternative.properties");
-                    configurator.doConfigure(url, LogManager.getLoggerRepository());
+                    try {
+                        URL url = Loader.getResource("log4j_alternative.properties");
+                        configurator.doConfigure(url, LogManager.getLoggerRepository());
+                    } catch (Exception e) {
+                    }
                     return false;
                 }
                 if (msg.startsWith("log4j:WARN Please initialize the log4j system properly.")) {
