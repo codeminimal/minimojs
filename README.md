@@ -14,4 +14,7 @@ login: lpp
 
 password: 1234
 
-The examples of code and how to run check out the project https://github.com/kodeless/minimojs_samples
+The examples of code and how to run check out the project
+
+https://github.com/kodeless/minimojs_samples
+
